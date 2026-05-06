@@ -977,7 +977,8 @@ button, input { font: inherit; }
 .wl-tabs::-webkit-scrollbar { display: none; }
 
 .wl-tabs .tab {
-  flex-shrink: 0;
+  /* Stay at natural content width regardless of any shared .tab rules */
+  flex: 0 0 auto;
   scroll-snap-align: start;
   /* Keep entire chip text on one line — the chip's own width grows to fit */
   white-space: nowrap;
@@ -2661,12 +2662,14 @@ ruby rt {
     flex-shrink: 0;
   }
 
-  .tab-bar {
+  /* Only stretch home/exam tabs (2-up). Word-list tab strip stays as
+     content-width chips with horizontal scroll. */
+  .tab-bar:not(.wl-tabs) {
     width: 100%;
     justify-content: stretch;
   }
 
-  .tab {
+  .tab-bar:not(.wl-tabs) .tab {
     flex: 1;
     text-align: center;
   }
