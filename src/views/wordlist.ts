@@ -6,16 +6,16 @@ import { isInWordbook, toggleWordbook } from '../state';
 import { navigate } from '../router';
 import type { VocabEntry, Question } from '../types';
 
-interface SectionDef { category: string; from: number; to: number; label: string }
+interface SectionDef { category: string; from: number; to: number; idx: number }
 
 function groupSections(qs: Question[]): SectionDef[] {
   const out: SectionDef[] = [];
   for (const q of qs) {
     const last = out[out.length - 1];
     if (last && last.category === q.category) last.to = q.n;
-    else out.push({ category: q.category, from: q.n, to: q.n, label: '' });
+    else out.push({ category: q.category, from: q.n, to: q.n, idx: out.length });
   }
-  return out.map((s, i) => ({ ...s, label: `問題${i + 1} ${categoryKo(s.category)}` }));
+  return out;
 }
 
 const KANJI_RE = /[一-龯々ヶ]/;
@@ -41,15 +41,15 @@ type SortKey = 'freq' | 'len' | 'reading';
 export async function renderWordlist(
   root: HTMLElement,
   examId: string,
-  initial: { section?: string; from?: number; to?: number },
+  initial: { sections?: string[]; from?: number; to?: number },
 ) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const [exam, vocab, kanjiKo] = await Promise.all([loadExam(examId), loadVocab(), loadKanjiKo()]);
   const idx = buildIndex(vocab);
   const sections = groupSections(exam.questions);
-  const max = exam.questions.length;
+  const validCats = new Set(sections.map((s) => s.category));
 
-  // Per-question vocab matches (computed once)
+  // Per-question vocab matches
   const perQ = new Map<number, Set<string>>();
   const entryByW = new Map<string, VocabEntry>();
   const freq = new Map<string, number>();
@@ -74,13 +74,21 @@ export async function renderWordlist(
 
   // ── State ──
   let sortKey: SortKey = 'freq';
-  let activeSection: string = initial.section ?? 'all';
+  // Multi-select set (empty = "전체")
+  const activeSet = new Set<string>();
+  if (initial.sections) {
+    for (const s of initial.sections) {
+      if (validCats.has(s)) activeSet.add(s);
+    }
+  }
   let rangeFrom: number | undefined = initial.from;
   let rangeTo: number | undefined = initial.to;
 
   const inRange = (n: number) => (rangeFrom == null || n >= rangeFrom) && (rangeTo == null || n <= rangeTo);
+  const isAll = () => activeSet.size === 0;
 
-  const sectionCount = (key: string): number => {
+  // Static count for a single section (used in tab badges) — independent of activeSet
+  const sectionCountSingle = (key: string): number => {
     const ws = new Set<string>();
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
@@ -94,7 +102,7 @@ export async function renderWordlist(
     const wordSet = new Set<string>();
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
-      if (activeSection !== 'all' && q.category !== activeSection) continue;
+      if (!isAll() && !activeSet.has(q.category)) continue;
       const set = perQ.get(q.n);
       if (!set) continue;
       for (const w of set) wordSet.add(w);
@@ -110,18 +118,18 @@ export async function renderWordlist(
   const tabsInitialHTML = (): string => {
     const items: { key: string; num: string; label: string }[] = [
       { key: 'all', num: '', label: '전체' },
-      ...sections.map((s, i) => ({
+      ...sections.map((s) => ({
         key: s.category,
-        num: `問題${i + 1}`,
+        num: `問題${s.idx + 1}`,
         label: categoryKo(s.category),
       })),
     ];
     return items.map((it) => {
-      const active = activeSection === it.key;
-      return `<button class="tab ${active ? 'is-active' : ''}" type="button" role="tab" data-section="${escapeHtml(it.key)}" aria-selected="${active}">
+      const active = it.key === 'all' ? isAll() : activeSet.has(it.key);
+      return `<button class="tab ${active ? 'is-active' : ''}" type="button" role="tab" data-section="${escapeHtml(it.key)}" aria-pressed="${active}">
         ${it.num ? `<span class="wl-tab-num">${escapeHtml(it.num)}</span>` : ''}
         <span class="wl-tab-label">${escapeHtml(it.label)}</span>
-        <span class="wl-tab-count" data-key="${escapeHtml(it.key)}">${sectionCount(it.key)}</span>
+        <span class="wl-tab-count" data-key="${escapeHtml(it.key)}">${sectionCountSingle(it.key)}</span>
       </button>`;
     }).join('');
   };
@@ -147,10 +155,10 @@ export async function renderWordlist(
     }).join('')}</section>`;
   };
 
-  const startLabel = (): string => {
-    const filtered = activeSection !== 'all' || rangeFrom != null || rangeTo != null;
-    return filtered ? '이 범위로 시작' : '시험 시작';
-  };
+  const startLabel = (): string =>
+    activeSet.size > 0 || rangeFrom != null || rangeTo != null
+      ? '이 범위로 시작'
+      : '시험 시작';
 
   // ── One-time skeleton render ──
   root.innerHTML = `
@@ -172,12 +180,6 @@ export async function renderWordlist(
       </nav>
 
       <div class="wl-controls">
-        <div class="range-pick wl-range">
-          <label>From <input type="number" id="wl-from" min="1" max="${max}" value="${rangeFrom ?? 1}" /></label>
-          <label>To <input type="number" id="wl-to" min="1" max="${max}" value="${rangeTo ?? max}" /></label>
-          <button id="wl-apply" type="button">범위 적용</button>
-          <button id="wl-reset" type="button" class="wl-reset" ${(rangeFrom == null && rangeTo == null) ? 'hidden' : ''}>초기화</button>
-        </div>
         <div class="wl-sort-wrap">
           <select id="wl-sort" class="wb-sort" aria-label="정렬">
             <option value="freq">출현 빈도순</option>
@@ -196,20 +198,17 @@ export async function renderWordlist(
   const countEl = root.querySelector<HTMLElement>('#wl-count')!;
   const startBtn = root.querySelector<HTMLButtonElement>('#wl-start')!;
   const sortSel = root.querySelector<HTMLSelectElement>('#wl-sort')!;
-  const fromEl = root.querySelector<HTMLInputElement>('#wl-from')!;
-  const toEl = root.querySelector<HTMLInputElement>('#wl-to')!;
-  const resetBtn = root.querySelector<HTMLButtonElement>('#wl-reset')!;
   sortSel.value = sortKey;
 
   // ── In-place updaters ──
   const refreshTabs = () => {
     tabsHost.querySelectorAll<HTMLButtonElement>('.tab').forEach((btn) => {
       const key = btn.dataset.section || 'all';
-      const active = key === activeSection;
+      const active = key === 'all' ? isAll() : activeSet.has(key);
       btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-selected', String(active));
+      btn.setAttribute('aria-pressed', String(active));
       const cnt = btn.querySelector<HTMLElement>('.wl-tab-count');
-      if (cnt) cnt.textContent = String(sectionCount(key));
+      if (cnt) cnt.textContent = String(sectionCountSingle(key));
     });
   };
 
@@ -217,7 +216,6 @@ export async function renderWordlist(
     const list = computeWords();
     countEl.textContent = `${list.length}개 단어`;
     resultsHost.innerHTML = resultsHTML(list);
-    // Subtle fade on content change
     resultsHost.classList.remove('wl-fade-in');
     void resultsHost.offsetWidth;
     resultsHost.classList.add('wl-fade-in');
@@ -225,25 +223,25 @@ export async function renderWordlist(
 
   const refreshStartLabel = () => { startBtn.textContent = startLabel(); };
 
-  const refreshResetVisibility = () => {
-    if (rangeFrom == null && rangeTo == null) resetBtn.setAttribute('hidden', '');
-    else resetBtn.removeAttribute('hidden');
-  };
-
   const update = () => {
     refreshTabs();
     refreshResults();
     refreshStartLabel();
-    refreshResetVisibility();
   };
 
-  // ── Event delegation (no re-render on tab click) ──
+  // ── Events ──
   tabsHost.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest('.tab') as HTMLButtonElement | null;
     if (!btn) return;
-    const next = btn.dataset.section || 'all';
-    if (next === activeSection) return;
-    activeSection = next;
+    const key = btn.dataset.section || 'all';
+    if (key === 'all') {
+      // Clear multi-set
+      if (activeSet.size === 0) return;
+      activeSet.clear();
+    } else {
+      if (activeSet.has(key)) activeSet.delete(key);
+      else activeSet.add(key);
+    }
     update();
   });
 
@@ -264,36 +262,13 @@ export async function renderWordlist(
     refreshResults();
   });
 
-  root.querySelector<HTMLButtonElement>('#wl-apply')!.addEventListener('click', () => {
-    const f = Number(fromEl.value);
-    const t = Number(toEl.value);
-    if (!Number.isFinite(f) || !Number.isFinite(t) || f < 1 || t > max || f > t) return;
-    rangeFrom = f === 1 ? undefined : f;
-    rangeTo = t === max ? undefined : t;
-    if (rangeFrom == null && rangeTo == null) {
-      // both at extremes — counted as no range filter
-    } else {
-      // Always carry both ends
-      rangeFrom = f;
-      rangeTo = t;
-    }
-    update();
-  });
-
-  resetBtn.addEventListener('click', () => {
-    rangeFrom = undefined;
-    rangeTo = undefined;
-    fromEl.value = '1';
-    toEl.value = String(max);
-    update();
-  });
-
   startBtn.addEventListener('click', () => {
+    const list = sections.filter((s) => activeSet.has(s.category));
     let from: number | undefined;
     let to: number | undefined;
-    if (activeSection !== 'all') {
-      const s = sections.find((ss) => ss.category === activeSection);
-      if (s) { from = s.from; to = s.to; }
+    if (list.length > 0) {
+      from = Math.min(...list.map((s) => s.from));
+      to = Math.max(...list.map((s) => s.to));
     }
     if (rangeFrom != null) from = rangeFrom;
     if (rangeTo != null) to = rangeTo;
@@ -301,6 +276,5 @@ export async function renderWordlist(
     navigate({ name: 'question', examId, n: startN, from, to });
   });
 
-  // First paint
   update();
 }

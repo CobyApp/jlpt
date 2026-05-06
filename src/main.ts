@@ -13,7 +13,7 @@ onRouteChange(async (route) => {
     if (route.name === 'home') await renderHome(root);
     else if (route.name === 'wordbook') await renderWordbook(root);
     else if (route.name === 'exam') await renderExam(root, route.examId);
-    else if (route.name === 'wordlist') await renderWordlist(root, route.examId, { section: route.section, from: route.from, to: route.to });
+    else if (route.name === 'wordlist') await renderWordlist(root, route.examId, { sections: route.sections, from: route.from, to: route.to });
     else if (route.name === 'question') await renderQuestion(root, route.examId, route.n, route.from, route.to);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

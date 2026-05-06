@@ -23,4 +23,26 @@ describe('parseRoute', () => {
   it('falls back to home for unrecognized path', () => {
     expect(parseRoute('#/garbage')).toEqual({ name: 'home' });
   });
+  it('wordbook', () => {
+    expect(parseRoute('#/wordbook')).toEqual({ name: 'wordbook' });
+  });
+  it('wordlist with multiple sections', () => {
+    const r = parseRoute('#/exam/n1_2025-07/words?sections=Kanji%20Reading,Usage');
+    expect(r).toEqual({
+      name: 'wordlist',
+      examId: 'n1_2025-07',
+      sections: ['Kanji Reading', 'Usage'],
+    });
+  });
+  it('wordlist with legacy single section param', () => {
+    const r = parseRoute('#/exam/n1_2025-07/words?section=Kanji%20Reading');
+    expect(r).toEqual({
+      name: 'wordlist',
+      examId: 'n1_2025-07',
+      sections: ['Kanji Reading'],
+    });
+  });
+  it('wordlist without filters', () => {
+    expect(parseRoute('#/exam/x/words')).toEqual({ name: 'wordlist', examId: 'x' });
+  });
 });

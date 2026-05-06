@@ -2,7 +2,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'wordbook' }
   | { name: 'exam'; examId: string }
-  | { name: 'wordlist'; examId: string; section?: string; from?: number; to?: number }
+  | { name: 'wordlist'; examId: string; sections?: string[]; from?: number; to?: number }
   | { name: 'question'; examId: string; n: number; from?: number; to?: number };
 
 export function parseRoute(hash: string): Route {
@@ -29,7 +29,16 @@ export function parseRoute(hash: string): Route {
       };
     }
     if (parts[2] === 'words') {
-      const section = params.get('section') ?? undefined;
+      // Support `sections=a,b,c` (preferred) and legacy `section=a` (single).
+      const sectionsRaw = params.get('sections');
+      const legacy = params.get('section');
+      let sections: string[] | undefined;
+      if (sectionsRaw) {
+        sections = sectionsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+        if (sections.length === 0) sections = undefined;
+      } else if (legacy) {
+        sections = [legacy];
+      }
       const fromRaw = params.get('from');
       const toRaw = params.get('to');
       const from = fromRaw !== null ? Number(fromRaw) : undefined;
@@ -37,7 +46,7 @@ export function parseRoute(hash: string): Route {
       return {
         name: 'wordlist',
         examId: parts[1],
-        ...(section ? { section } : {}),
+        ...(sections ? { sections } : {}),
         ...(from !== undefined && Number.isFinite(from) ? { from } : {}),
         ...(to !== undefined && Number.isFinite(to) ? { to } : {}),
       };
@@ -54,7 +63,9 @@ export function navigate(route: Route) {
   else if (route.name === 'wordlist') {
     hash = `#/exam/${route.examId}/words`;
     const params: string[] = [];
-    if (route.section) params.push(`section=${encodeURIComponent(route.section)}`);
+    if (route.sections && route.sections.length) {
+      params.push(`sections=${route.sections.map(encodeURIComponent).join(',')}`);
+    }
     if (route.from != null) params.push(`from=${route.from}`);
     if (route.to != null) params.push(`to=${route.to}`);
     if (params.length) hash += `?${params.join('&')}`;
