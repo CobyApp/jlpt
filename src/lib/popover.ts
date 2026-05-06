@@ -50,8 +50,14 @@ export function showPopover(near: HTMLElement, entry: VocabEntry) {
   `;
   document.body.appendChild(pop);
   const r = near.getBoundingClientRect();
+  // Position with viewport-aware clamping so popover never overflows.
+  const popMax = Math.min(320, window.innerWidth - 24);
+  const margin = 12;
+  const desiredLeft = r.left + window.scrollX;
+  const maxLeft = window.scrollX + window.innerWidth - popMax - margin;
   pop.style.top = `${r.bottom + window.scrollY + 6}px`;
-  pop.style.left = `${Math.min(r.left + window.scrollX, window.innerWidth - 280)}px`;
+  pop.style.left = `${Math.max(window.scrollX + margin, Math.min(desiredLeft, maxLeft))}px`;
+  pop.style.maxWidth = `${popMax}px`;
   current = pop;
 
   // Star toggle handler — keeps popover open after toggling

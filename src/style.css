@@ -905,6 +905,14 @@ button, input { font: inherit; }
     flex: 1;
     text-align: center;
   }
+  .section-heading {
+    flex-wrap: wrap;
+  }
+  .section-heading-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 /* ──────── Wordlist (preview) ──────── */
@@ -1148,10 +1156,14 @@ button, input { font: inherit; }
     padding: 18px 20px;
   }
   .wl-bar-actions {
+    display: flex;
+    gap: 8px;
     width: 100%;
   }
-  .wl-bar-actions .primary {
-    width: 100%;
+  .wl-bar-actions > .study-cta,
+  .wl-bar-actions > .primary {
+    flex: 1;
+    justify-content: center;
   }
   .wl-controls {
     flex-direction: column;
@@ -1645,7 +1657,7 @@ button, input { font: inherit; }
   position: absolute;
   z-index: 1000;
   max-width: 320px;
-  min-width: 240px;
+  min-width: min(240px, calc(100vw - 32px));
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -2472,10 +2484,17 @@ body.no-scroll {
   }
   .wb-bar-actions {
     width: 100%;
-    justify-content: stretch;
+    flex-wrap: wrap;
   }
-  .wb-sort, .wb-clear {
+  .wb-bar-actions .wb-sort,
+  .wb-bar-actions .wb-clear {
     flex: 1;
+    min-width: 120px;
+  }
+  .wb-bar-actions .study-cta {
+    flex: 1 0 100%;
+    order: -1;
+    justify-content: center;
   }
   .wb-grid {
     grid-template-columns: 1fr;
