@@ -1823,6 +1823,15 @@ button, input { font: inherit; }
   box-shadow: 0 16px 32px rgba(122, 65, 105, 0.1);
 }
 
+.wb-card.wb-card-leaving {
+  animation: wbLeave 0.18s var(--easing) forwards;
+  pointer-events: none;
+}
+
+@keyframes wbLeave {
+  to { opacity: 0; transform: scale(0.96) translateY(-4px); }
+}
+
 .wb-head {
   display: flex;
   align-items: flex-start;

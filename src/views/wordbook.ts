@@ -48,82 +48,111 @@ export async function renderWordbook(root: HTMLElement) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const [vocab, kanjiKo] = await Promise.all([loadVocab(), loadKanjiKo()]);
   const map = new Map(vocab.map((v) => [v.w, v]));
-  const sort = loadSort();
 
-  const draw = () => {
+  // ── HTML helpers ──
+  const cardHTML = (e: WordbookEntry & VocabEntry) => `
+    <article class="wb-card" data-w="${escapeHtml(e.w)}">
+      <header class="wb-head">
+        <span class="wb-w">${escapeHtml(e.w)}</span>
+        <button class="wb-rm" data-w="${escapeHtml(e.w)}" type="button" title="단어장에서 제거" aria-label="단어장에서 제거">×</button>
+      </header>
+      <div class="wb-r">${escapeHtml(e.r || '—')}</div>
+      <div class="wb-m">${escapeHtml(e.m_ko || e.m || '(의미 없음)')}</div>
+      ${renderHanja(e.w, kanjiKo)}
+    </article>`;
+
+  const bodyHTML = (count: number, listHTML: string) => count === 0
+    ? `<div class="wb-empty">
+        <h2>아직 저장한 단어가 없어요</h2>
+        <p>문제 풀면서 본문에 표시된 단어를 클릭하고, 팝오버 우측 상단 ☆ 버튼으로 단어를 단어장에 담아보세요.</p>
+        <a href="#/" class="primary wb-empty-cta">홈으로 돌아가기</a>
+      </div>`
+    : `<section class="wb-grid">${listHTML}</section>`;
+
+  // ── One-time skeleton ──
+  const initialList = (() => {
+    const wb = getWordbook();
+    const enriched = wb.map((e) => ({ ...e, ...(map.get(e.w) ?? { w: e.w, r: '', m: '', m_ko: '' }) }));
+    return applySort(enriched, loadSort());
+  })();
+
+  const initialSort = loadSort();
+
+  root.innerHTML = `
+    <div class="app-shell">
+      <a href="#/" class="back">홈으로</a>
+      <header class="wb-bar">
+        <div class="wb-bar-title">
+          <span class="home-kicker">My Wordbook</span>
+          <h1 class="home-title">단어장</h1>
+          <p class="wb-bar-meta" id="wb-meta">${initialList.length}개 단어 저장됨</p>
+        </div>
+        <div class="wb-bar-actions">
+          <select id="wb-sort" class="wb-sort" aria-label="정렬">
+            <option value="recent" ${initialSort==='recent'?'selected':''}>최근 추가순</option>
+            <option value="oldest" ${initialSort==='oldest'?'selected':''}>오래된순</option>
+            <option value="len" ${initialSort==='len'?'selected':''}>긴 단어순</option>
+            <option value="reading" ${initialSort==='reading'?'selected':''}>가나순</option>
+          </select>
+          <button id="wb-clear" class="wb-clear" type="button" ${initialList.length === 0 ? 'hidden' : ''}>전체 비우기</button>
+        </div>
+      </header>
+      <div id="wb-body">${bodyHTML(initialList.length, initialList.map(cardHTML).join(''))}</div>
+    </div>`;
+
+  const metaEl = root.querySelector<HTMLElement>('#wb-meta')!;
+  const bodyEl = root.querySelector<HTMLElement>('#wb-body')!;
+  const clearBtn = root.querySelector<HTMLButtonElement>('#wb-clear')!;
+  const sortSel = root.querySelector<HTMLSelectElement>('#wb-sort')!;
+
+  // ── In-place updaters ──
+  const refresh = (animate = true) => {
     const wb = getWordbook();
     const enriched = wb.map((e) => ({ ...e, ...(map.get(e.w) ?? { w: e.w, r: '', m: '', m_ko: '' }) }));
     const sorted = applySort(enriched, loadSort());
-
-    const cards = sorted.map((e) => `
-      <article class="wb-card" data-w="${escapeHtml(e.w)}">
-        <header class="wb-head">
-          <span class="wb-w">${escapeHtml(e.w)}</span>
-          <button class="wb-rm" data-w="${escapeHtml(e.w)}" title="단어장에서 제거" aria-label="단어장에서 제거">×</button>
-        </header>
-        <div class="wb-r">${escapeHtml(e.r || '—')}</div>
-        <div class="wb-m">${escapeHtml(e.m_ko || e.m || '(의미 없음)')}</div>
-        ${renderHanja(e.w, kanjiKo)}
-      </article>`).join('');
-
-    const sortKey = loadSort();
-    root.innerHTML = `
-      <div class="app-shell">
-        <a href="#/" class="back">홈으로</a>
-        <header class="wb-bar">
-          <div class="wb-bar-title">
-            <span class="home-kicker">My Wordbook</span>
-            <h1 class="home-title">단어장</h1>
-            <p class="wb-bar-meta">${wb.length}개 단어 저장됨</p>
-          </div>
-          <div class="wb-bar-actions">
-            <select id="wb-sort" class="wb-sort" aria-label="정렬">
-              <option value="recent" ${sortKey==='recent'?'selected':''}>최근 추가순</option>
-              <option value="oldest" ${sortKey==='oldest'?'selected':''}>오래된순</option>
-              <option value="len" ${sortKey==='len'?'selected':''}>긴 단어순</option>
-              <option value="reading" ${sortKey==='reading'?'selected':''}>가나순</option>
-            </select>
-            ${wb.length ? `<button id="wb-clear" class="wb-clear" type="button">전체 비우기</button>` : ''}
-          </div>
-        </header>
-        ${wb.length === 0
-          ? `<div class="wb-empty">
-              <h2>아직 저장한 단어가 없어요</h2>
-              <p>문제 풀면서 본문에 표시된 단어를 클릭하고, 팝오버 우측 상단 ☆ 버튼으로 단어를 단어장에 담아보세요.</p>
-              <a href="#/" class="primary wb-empty-cta">홈으로 돌아가기</a>
-            </div>`
-          : `<section class="wb-grid">${cards}</section>`
-        }
-      </div>`;
-
-    root.querySelectorAll<HTMLButtonElement>('.wb-rm').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const w = btn.dataset.w;
-        if (!w) return;
-        removeFromWordbook(w);
-        draw();
-      });
-    });
-
-    const sel = root.querySelector<HTMLSelectElement>('#wb-sort');
-    if (sel) {
-      sel.addEventListener('change', () => {
-        saveSort(sel.value as SortKey);
-        draw();
-      });
-    }
-
-    const clearBtn = root.querySelector<HTMLButtonElement>('#wb-clear');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        if (confirm('단어장의 모든 단어를 비울까요?')) {
-          clearWordbook();
-          draw();
-        }
-      });
+    metaEl.textContent = `${sorted.length}개 단어 저장됨`;
+    if (sorted.length === 0) clearBtn.setAttribute('hidden', '');
+    else clearBtn.removeAttribute('hidden');
+    bodyEl.innerHTML = bodyHTML(sorted.length, sorted.map(cardHTML).join(''));
+    if (animate) {
+      bodyEl.classList.remove('wl-fade-in');
+      void bodyEl.offsetWidth;
+      bodyEl.classList.add('wl-fade-in');
     }
   };
 
-  draw();
-  void sort; // mark used for the closure
+  // ── Event delegation ──
+  bodyEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.wb-rm') as HTMLButtonElement | null;
+    if (!btn) return;
+    const w = btn.dataset.w;
+    if (!w) return;
+    const card = btn.closest('.wb-card') as HTMLElement | null;
+    removeFromWordbook(w);
+    if (!card) { refresh(false); return; }
+    // Animate the specific card out, then surgically remove it
+    card.classList.add('wb-card-leaving');
+    setTimeout(() => {
+      card.remove();
+      const remaining = bodyEl.querySelectorAll('.wb-card').length;
+      metaEl.textContent = `${remaining}개 단어 저장됨`;
+      if (remaining === 0) {
+        clearBtn.setAttribute('hidden', '');
+        // Swap grid for empty state without flashing the whole shell
+        bodyEl.innerHTML = bodyHTML(0, '');
+      }
+    }, 180);
+  });
+
+  sortSel.addEventListener('change', () => {
+    saveSort(sortSel.value as SortKey);
+    refresh();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (confirm('단어장의 모든 단어를 비울까요?')) {
+      clearWordbook();
+      refresh();
+    }
+  });
 }

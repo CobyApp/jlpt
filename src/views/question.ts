@@ -72,9 +72,26 @@ export async function renderQuestion(
   root.querySelector<HTMLButtonElement>('#next')!.addEventListener('click', () => {
     if (n < max) navigate({ name: 'question', examId, n: n + 1, from, to });
   }, { signal });
-  root.querySelector<HTMLButtonElement>('#toggle-furigana')!.addEventListener('click', () => {
+
+  // Furigana toggle: refresh JA text in place (no full re-render)
+  const furiBtn = root.querySelector<HTMLButtonElement>('#toggle-furigana')!;
+  furiBtn.addEventListener('click', () => {
     setSettings({ furigana: !getSettings().furigana });
-    renderQuestion(root, examId, n, from, to);
+    furiBtn.textContent = `후리가나 ${getSettings().furigana ? 'ON' : 'OFF'}`;
+    // Re-render passage / stem / option text in place
+    const passEl = root.querySelector<HTMLElement>('.passage .ja');
+    if (passEl && q.passage) {
+      const p = exam.passages[q.passage];
+      if (p) passEl.innerHTML = renderJa(p.ja, idx);
+    }
+    const stemEl = root.querySelector<HTMLElement>('.stem');
+    if (stemEl) {
+      stemEl.innerHTML = q.stem ? renderJaWithUnderline(q.stem, idx, q.stem_u) : '(빈칸 채우기 — 위 지문 참조)';
+    }
+    root.querySelectorAll<HTMLElement>('.opt .opt-text').forEach((el, i) => {
+      const text = q.opts[i];
+      if (text != null) el.innerHTML = renderJa(text, idx);
+    });
   }, { signal });
 
   const optBtns = root.querySelectorAll<HTMLButtonElement>('.opt');
