@@ -74,7 +74,10 @@ export async function renderExam(root: HTMLElement, examId: string) {
           <div class="section-heading">
             <p class="eyebrow">Section</p>
             <h2>섹션 선택</h2>
-            <button id="reset-all" class="ghost-link" type="button" disabled>선택 해제</button>
+            <div class="section-heading-actions">
+              <button id="reset-all" class="ghost-link" type="button" disabled>선택 해제</button>
+              <button id="select-all" class="ghost-link" type="button">전체 선택</button>
+            </div>
           </div>
           <ul class="sections section-grid" id="sec-list">${sectionHTML}</ul>
         </section>
@@ -96,6 +99,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
   // ── Cached refs ──
   const secList = root.querySelector<HTMLElement>('#sec-list')!;
   const resetBtn = root.querySelector<HTMLButtonElement>('#reset-all')!;
+  const selectAllBtn = root.querySelector<HTMLButtonElement>('#select-all')!;
   const sumLabel = root.querySelector<HTMLElement>('#sum-label')!;
   const sumRange = root.querySelector<HTMLElement>('#sum-range')!;
   const startBtn = root.querySelector<HTMLButtonElement>('#go-start')!;
@@ -115,6 +119,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
     sumLabel.textContent = s.label;
     sumRange.textContent = s.range;
     resetBtn.disabled = !s.hasSelection;
+    selectAllBtn.disabled = selected.size === sections.length;
     startBtn.disabled = !s.hasSelection;
     wordsBtn.disabled = !s.hasSelection;
   };
@@ -147,6 +152,11 @@ export async function renderExam(root: HTMLElement, examId: string) {
 
   resetBtn.addEventListener('click', () => {
     selected.clear();
+    update();
+  });
+
+  selectAllBtn.addEventListener('click', () => {
+    for (const s of sections) selected.add(s.category);
     update();
   });
 

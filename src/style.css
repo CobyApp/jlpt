@@ -771,6 +771,12 @@ button, input { font: inherit; }
   transform: translateY(-2px);
 }
 
+.section-heading-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+
 .section-heading .ghost-link {
   margin-left: auto;
   padding: 6px 12px;
@@ -783,6 +789,10 @@ button, input { font: inherit; }
   font-weight: 700;
   cursor: pointer;
   transition: background var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.section-heading-actions .ghost-link {
+  margin-left: 0;
 }
 
 .section-heading .ghost-link:hover:not(:disabled) {
