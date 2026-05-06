@@ -23,6 +23,7 @@ export interface Question {
   id: string;
   passage: string | null;
   stem: string;
+  stem_u?: string;
   opts: string[];
   correct: number;
   category: string;

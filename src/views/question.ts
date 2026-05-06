@@ -56,7 +56,7 @@ export async function renderQuestion(
       <main class="qmain">
         <section class="question-card">
           ${q.passage ? renderPassage(exam, q.passage, idx) : ''}
-          <div class="stem">${q.stem ? renderJa(q.stem, idx) : '(빈칸 채우기 — 위 지문 참조)'}</div>
+          <div class="stem">${q.stem ? renderJaWithUnderline(q.stem, idx, q.stem_u) : '(빈칸 채우기 — 위 지문 참조)'}</div>
           <ol class="opts">
             ${q.opts.map((o, i) => `<li><button class="opt" data-i="${i}"><span>${i + 1}</span>${renderJa(o, idx)}</button></li>`).join('')}
           </ol>
@@ -126,6 +126,16 @@ function renderPassage(exam: Exam, pid: string, idx: ReturnType<typeof buildInde
 function renderJa(text: string, idx: ReturnType<typeof buildIndex>): string {
   const segs = matchVocab(text, idx);
   return getSettings().furigana ? withFurigana(segs) : withoutFurigana(segs);
+}
+
+function renderJaWithUnderline(text: string, idx: ReturnType<typeof buildIndex>, underline?: string): string {
+  if (!underline) return renderJa(text, idx);
+  const i = text.indexOf(underline);
+  if (i < 0) return renderJa(text, idx);
+  const before = text.slice(0, i);
+  const target = text.slice(i, i + underline.length);
+  const after = text.slice(i + underline.length);
+  return `${renderJa(before, idx)}<u class="qu">${renderJa(target, idx)}</u>${renderJa(after, idx)}`;
 }
 
 function gradeAndShow(

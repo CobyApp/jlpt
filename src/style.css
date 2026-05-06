@@ -734,12 +734,21 @@ button, input { font: inherit; }
 }
 
 .vw {
-  border-bottom: 1px dashed var(--blue);
   cursor: help;
+  transition: background 0.12s ease;
+  border-radius: 2px;
 }
 
 .vw:hover {
-  background: rgba(244, 114, 182, 0.1);
+  background: linear-gradient(transparent 55%, rgba(252, 211, 77, 0.55) 55%);
+}
+
+.qu {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--text);
+  text-underline-offset: 4px;
+  font-weight: 600;
 }
 
 .vocab-popover {
