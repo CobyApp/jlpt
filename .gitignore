@@ -9,4 +9,6 @@ cache/
 *.log
 public/data/
 scripts/.translate-cache.json
+scripts/.vocab-candidates.json
+scripts/.batches/
 __pycache__/
