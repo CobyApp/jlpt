@@ -949,18 +949,40 @@ button, input { font: inherit; }
   flex-shrink: 0;
 }
 
-/* Section "chip" filter for wordlist preview */
+/* Section "chip" filter for wordlist preview — always single-row horizontal
+   scroll so the tab strip never stacks into many tall rows. */
 .wl-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
   gap: 8px;
-  margin: 0 0 16px;
-  padding: 0;
+  margin: 0 -4px 14px;
+  padding: 4px;
   border: 0;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(190, 116, 154, 0.28) transparent;
+  /* Edge fade — hints that the strip is scrollable */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+
+.wl-tabs::-webkit-scrollbar { height: 4px; }
+.wl-tabs::-webkit-scrollbar-thumb {
+  background: rgba(190, 116, 154, 0.24);
+  border-radius: 999px;
+}
+.wl-tabs::-webkit-scrollbar-track { background: transparent; }
+
+.wl-tabs .tab {
+  flex-shrink: 0;
+  scroll-snap-align: start;
 }
 
 .wl-tabs .tab {
@@ -1173,35 +1195,8 @@ button, input { font: inherit; }
     justify-content: space-between;
   }
 
-  /* Tabs become a horizontal scroll strip on mobile (instead of wrapping
-     into many rows which feels cluttered). */
-  .wl-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-    margin-bottom: 12px;
-    /* Pull edges to bar so chips can scroll past edges with breathing room */
-    margin-left: -4px;
-    margin-right: -4px;
-    padding: 4px;
-    /* Subtle scrollbar */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(190, 116, 154, 0.32) transparent;
-    /* Edge fade hint */
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-            mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-  }
-  .wl-tabs::-webkit-scrollbar { height: 4px; }
-  .wl-tabs::-webkit-scrollbar-thumb {
-    background: rgba(190, 116, 154, 0.28);
-    border-radius: 999px;
-  }
-  .wl-tabs::-webkit-scrollbar-track { background: transparent; }
+  /* Slightly more compact chips on mobile */
   .wl-tabs .tab {
-    flex-shrink: 0;
-    scroll-snap-align: start;
     padding: 7px 6px 7px 12px;
     font-size: 12.5px;
     gap: 6px;
