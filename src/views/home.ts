@@ -1,6 +1,7 @@
 import { loadIndex } from '../lib/data';
 import { escapeHtml } from '../lib/html';
 import { getProgress, getLast } from '../state';
+import { ALL_CATEGORIES, categoryKo } from '../lib/categories';
 
 export async function renderHome(root: HTMLElement) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
@@ -36,6 +37,30 @@ export async function renderHome(root: HTMLElement) {
     ? `<a class="resume" href="#/exam/${last.examId}/q/${last.questionN}"><strong>이어서 풀기</strong><span>${last.examId} · 문제 ${last.questionN}</span></a>`
     : '';
 
+  const categoriesByGroup = ALL_CATEGORIES.reduce<Record<string, typeof ALL_CATEGORIES>>((acc, c) => {
+    (acc[c.group] ||= []).push(c);
+    return acc;
+  }, {});
+
+  const catSection = Object.entries(categoriesByGroup).map(([group, cats]) => {
+    const cards = cats.map((c) => {
+      const examId = `cat:${c.slug}`;
+      const prog = getProgress(examId);
+      const answered = Object.keys(prog).length;
+      return `
+        <a class="card cat-card" href="#/exam/${examId}">
+          <span class="cat-group">${escapeHtml(group)}</span>
+          <h3 class="cat-name">${escapeHtml(categoryKo(c.category))}</h3>
+          <span class="cat-meta">${answered ? `${answered}문제 풀었음` : '아직 학습 전'}</span>
+        </a>`;
+    }).join('');
+    return `
+      <div class="cat-group-block">
+        <h3 class="cat-group-label">${escapeHtml(group)}</h3>
+        <div class="cat-grid">${cards}</div>
+      </div>`;
+  }).join('');
+
   root.innerHTML = `
     <div class="app-shell">
       <header class="hero home-hero">
@@ -60,6 +85,13 @@ export async function renderHome(root: HTMLElement) {
           <strong>${answeredTotal}/${totalQuestions}</strong>
         </div>
       </section>
-      <main class="cards">${cards}</main>
+      <section class="home-section">
+        <div class="section-heading"><h2>회차별 풀이</h2><span class="section-sub">최신 모의고사부터 차례로</span></div>
+        <div class="cards">${cards}</div>
+      </section>
+      <section class="home-section">
+        <div class="section-heading"><h2>영역별 모음</h2><span class="section-sub">전 회차에서 같은 유형만 모아 풀기</span></div>
+        ${catSection}
+      </section>
     </div>`;
 }

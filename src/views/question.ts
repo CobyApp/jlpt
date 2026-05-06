@@ -42,7 +42,7 @@ export async function renderQuestion(
         <a href="#/exam/${examId}" class="back" title="${escapeHtml(exam.title)}">←</a>
         <div class="qhdr-info">
           <span class="qhdr-pos">${n} / ${max}</span>
-          <span class="qhdr-cat">${categoryKo(q.category)}</span>
+          <span class="qhdr-cat">${categoryKo(q.category)}</span>${q.src_label ? `<span class="qhdr-src">${escapeHtml(q.src_label)} · ${q.src_n}</span>` : ''}
           <span class="qhdr-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rangeProgress}"><i style="width:${rangeProgress}%"></i></span>
         </div>
         <button id="toggle-furigana" class="toggle">후리가나 ${getSettings().furigana ? 'ON' : 'OFF'}</button>

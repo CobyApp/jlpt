@@ -29,6 +29,8 @@ export interface Question {
   category: string;
   expl: string;
   expl_ko?: string;
+  src_label?: string;
+  src_n?: number;
 }
 
 export interface Exam {
