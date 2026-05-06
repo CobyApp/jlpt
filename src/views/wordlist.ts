@@ -96,13 +96,44 @@ export async function renderWordlist(
   };
 
   const sectionTabs = () => {
-    const items = [
-      { key: 'all', label: '전체' },
-      ...sections.map((s, i) => ({ key: s.category, label: `問題${i + 1} ${categoryKo(s.category)}` })),
+    // Total unique words (all sections + range-aware? Range-aware is fine since range applies in computeWords too)
+    const totalForAll = (() => {
+      const ws = new Set<string>();
+      for (const q of exam.questions) {
+        if (!inRange(q.n)) continue;
+        for (const w of perQ.get(q.n) ?? []) ws.add(w);
+      }
+      return ws.size;
+    })();
+
+    const items: { key: string; num: string; label: string; count: number }[] = [
+      { key: 'all', num: '', label: '전체', count: totalForAll },
+      ...sections.map((s, i) => {
+        const ws = new Set<string>();
+        for (const q of exam.questions) {
+          if (q.category !== s.category) continue;
+          if (!inRange(q.n)) continue;
+          for (const w of perQ.get(q.n) ?? []) ws.add(w);
+        }
+        return {
+          key: s.category,
+          num: `問題${i + 1}`,
+          label: categoryKo(s.category),
+          count: ws.size,
+        };
+      }),
     ];
+
     return `
       <nav class="tab-bar wl-tabs" role="tablist" aria-label="영역 필터">
-        ${items.map((it) => `<button class="tab ${activeSection === it.key ? 'is-active' : ''}" type="button" role="tab" data-section="${escapeHtml(it.key)}">${escapeHtml(it.label)}</button>`).join('')}
+        ${items.map((it) => {
+          const active = activeSection === it.key;
+          return `<button class="tab ${active ? 'is-active' : ''}" type="button" role="tab" data-section="${escapeHtml(it.key)}" aria-selected="${active}">
+            ${it.num ? `<span class="wl-tab-num">${escapeHtml(it.num)}</span>` : ''}
+            <span class="wl-tab-label">${escapeHtml(it.label)}</span>
+            <span class="wl-tab-count">${it.count}</span>
+          </button>`;
+        }).join('')}
       </nav>`;
   };
 
