@@ -2,6 +2,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'wordbook' }
   | { name: 'exam'; examId: string }
+  | { name: 'wordlist'; examId: string; section?: string; from?: number; to?: number }
   | { name: 'question'; examId: string; n: number; from?: number; to?: number };
 
 export function parseRoute(hash: string): Route {
@@ -27,6 +28,20 @@ export function parseRoute(hash: string): Route {
         ...(to !== undefined && Number.isFinite(to) ? { to } : {}),
       };
     }
+    if (parts[2] === 'words') {
+      const section = params.get('section') ?? undefined;
+      const fromRaw = params.get('from');
+      const toRaw = params.get('to');
+      const from = fromRaw !== null ? Number(fromRaw) : undefined;
+      const to = toRaw !== null ? Number(toRaw) : undefined;
+      return {
+        name: 'wordlist',
+        examId: parts[1],
+        ...(section ? { section } : {}),
+        ...(from !== undefined && Number.isFinite(from) ? { from } : {}),
+        ...(to !== undefined && Number.isFinite(to) ? { to } : {}),
+      };
+    }
     return { name: 'exam', examId: parts[1] };
   }
   return { name: 'home' };
@@ -36,6 +51,14 @@ export function navigate(route: Route) {
   let hash = '#/';
   if (route.name === 'wordbook') hash = '#/wordbook';
   else if (route.name === 'exam') hash = `#/exam/${route.examId}`;
+  else if (route.name === 'wordlist') {
+    hash = `#/exam/${route.examId}/words`;
+    const params: string[] = [];
+    if (route.section) params.push(`section=${encodeURIComponent(route.section)}`);
+    if (route.from != null) params.push(`from=${route.from}`);
+    if (route.to != null) params.push(`to=${route.to}`);
+    if (params.length) hash += `?${params.join('&')}`;
+  }
   else if (route.name === 'question') {
     hash = `#/exam/${route.examId}/q/${route.n}`;
     const params: string[] = [];
