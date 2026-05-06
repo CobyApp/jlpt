@@ -1084,27 +1084,6 @@ button, input { font: inherit; }
   font-weight: 600;
 }
 
-.wl-card {
-  position: relative;
-}
-
-.wl-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 16px 0 0 16px;
-  background: linear-gradient(180deg, #f9a8d4, #c084fc);
-  opacity: 0;
-  transition: opacity var(--t-fast) ease;
-}
-
-.wl-card:hover::before {
-  opacity: 1;
-}
-
 .wl-card-foot {
   display: flex;
   align-items: center;
