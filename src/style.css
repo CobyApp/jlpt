@@ -951,9 +951,12 @@ button, input { font: inherit; }
 
 /* Section "chip" filter for wordlist preview — wraps into rows; each chip
    keeps its full label on a single line. */
-.wl-tabs {
+.wl-tabs.wl-tabs {
+  /* `.tab-bar` defaults to inline-flex which can shrink the strip; force
+     full-width block flex with wrap so chips spill onto the next row. */
   display: flex;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
+  width: 100%;
   gap: 8px;
   margin: 0 0 16px;
   padding: 0;
@@ -962,6 +965,7 @@ button, input { font: inherit; }
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
+  overflow: visible;
 }
 
 .wl-tabs .tab {
