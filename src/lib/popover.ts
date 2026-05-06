@@ -1,6 +1,7 @@
 import type { VocabEntry } from '../types';
 import { escapeHtml } from './html';
 import { loadKanjiKo } from './data';
+import { isInWordbook, toggleWordbook } from '../state';
 
 let current: HTMLDivElement | null = null;
 let kanjiKoCache: Record<string, [string, string]> | null = null;
@@ -28,12 +29,21 @@ function renderHanja(word: string, table: Record<string, [string, string]> | nul
   return `<ul class="vp-hanja">${rows.join('')}</ul>`;
 }
 
+function starButton(w: string): string {
+  const saved = isInWordbook(w);
+  const label = saved ? '단어장에서 제거' : '단어장에 추가';
+  return `<button class="vp-star ${saved ? 'is-saved' : ''}" type="button" title="${label}" aria-label="${label}" aria-pressed="${saved}">${saved ? '★' : '☆'}</button>`;
+}
+
 export function showPopover(near: HTMLElement, entry: VocabEntry) {
   hidePopover();
   const pop = document.createElement('div');
   pop.className = 'vocab-popover';
   pop.innerHTML = `
-    <div class="vp-w">${escapeHtml(entry.w)}</div>
+    <div class="vp-top">
+      <div class="vp-w">${escapeHtml(entry.w)}</div>
+      ${starButton(entry.w)}
+    </div>
     <div class="vp-r">${escapeHtml(entry.r)}</div>
     <div class="vp-m">${escapeHtml(entry.m_ko ?? entry.m)}</div>
     ${renderHanja(entry.w, kanjiKoCache)}
@@ -43,6 +53,21 @@ export function showPopover(near: HTMLElement, entry: VocabEntry) {
   pop.style.top = `${r.bottom + window.scrollY + 6}px`;
   pop.style.left = `${Math.min(r.left + window.scrollX, window.innerWidth - 280)}px`;
   current = pop;
+
+  // Star toggle handler — keeps popover open after toggling
+  const star = pop.querySelector<HTMLButtonElement>('.vp-star');
+  if (star) {
+    star.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nowSaved = toggleWordbook(entry.w);
+      star.classList.toggle('is-saved', nowSaved);
+      star.textContent = nowSaved ? '★' : '☆';
+      const label = nowSaved ? '단어장에서 제거' : '단어장에 추가';
+      star.title = label;
+      star.setAttribute('aria-label', label);
+      star.setAttribute('aria-pressed', String(nowSaved));
+    });
+  }
 
   // If kanji table wasn't loaded yet at click time, fill it in once it arrives
   if (!kanjiKoCache) {

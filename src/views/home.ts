@@ -1,6 +1,6 @@
 import { loadIndex } from '../lib/data';
 import { escapeHtml } from '../lib/html';
-import { getProgress, getLast } from '../state';
+import { getProgress, getLast, getWordbook } from '../state';
 import { ALL_CATEGORIES, categoryKo } from '../lib/categories';
 
 type HomeTab = 'exams' | 'cats';
@@ -60,6 +60,13 @@ export async function renderHome(root: HTMLElement) {
        </a>`
     : '';
 
+  const wordbookCount = getWordbook().length;
+  const wordbookPill = `<a class="wb-pill" href="#/wordbook" title="단어장 열기">
+      <span class="wb-pill-icon">★</span>
+      <span class="wb-pill-label">단어장</span>
+      <span class="wb-pill-count">${wordbookCount}</span>
+    </a>`;
+
   const categoriesByGroup = ALL_CATEGORIES.reduce<Record<string, typeof ALL_CATEGORIES>>((acc, c) => {
     (acc[c.group] ||= []).push(c);
     return acc;
@@ -98,6 +105,7 @@ export async function renderHome(root: HTMLElement) {
             <div class="home-progress-track"><i style="width:${overallProgress}%"></i></div>
             <span class="home-progress-label">${answeredTotal}<small>/${totalQuestions}</small></span>
           </div>
+          ${wordbookPill}
           ${resume}
         </div>
       </header>

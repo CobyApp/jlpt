@@ -2,6 +2,7 @@ import { onRouteChange } from './router';
 import { renderHome } from './views/home';
 import { renderExam } from './views/exam';
 import { renderQuestion } from './views/question';
+import { renderWordbook } from './views/wordbook';
 import { escapeHtml } from './lib/html';
 
 const root = document.getElementById('app')!;
@@ -9,6 +10,7 @@ const root = document.getElementById('app')!;
 onRouteChange(async (route) => {
   try {
     if (route.name === 'home') await renderHome(root);
+    else if (route.name === 'wordbook') await renderWordbook(root);
     else if (route.name === 'exam') await renderExam(root, route.examId);
     else if (route.name === 'question') await renderQuestion(root, route.examId, route.n, route.from, route.to);
   } catch (e) {
