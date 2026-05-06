@@ -39,27 +39,24 @@ export async function renderQuestion(
   root.innerHTML = `
     <div class="study-shell">
       <header class="qhdr">
-        <div>
-          <a href="#/exam/${examId}" class="back">${escapeHtml(exam.title)}</a>
-          <div class="qmeta">
-            <span>문제 ${n} / ${max}</span>
-            <span>범위 ${min}–${max}</span>
-            <span>${categoryKo(q.category)}</span>
-          </div>
-          <div class="question-progress" role="progressbar" aria-label="현재 범위 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rangeProgress}">
-            <span style="width: ${rangeProgress}%"></span>
-          </div>
-          <div class="qposition">${rangePosition}번째 / ${rangeTotal}문제</div>
+        <a href="#/exam/${examId}" class="back" title="${escapeHtml(exam.title)}">←</a>
+        <div class="qhdr-info">
+          <span class="qhdr-pos">${n} / ${max}</span>
+          <span class="qhdr-cat">${categoryKo(q.category)}</span>
+          <span class="qhdr-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rangeProgress}"><i style="width:${rangeProgress}%"></i></span>
         </div>
-        <button id="toggle-furigana" class="toggle">${getSettings().furigana ? '후리가나 ON' : '후리가나 OFF'}</button>
+        <button id="toggle-furigana" class="toggle">후리가나 ${getSettings().furigana ? 'ON' : 'OFF'}</button>
       </header>
       <main class="qmain">
         <section class="question-card">
           ${q.passage ? renderPassage(exam, q.passage, idx) : ''}
           <div class="stem">${q.stem ? renderJaWithUnderline(q.stem, idx, q.stem_u) : '(빈칸 채우기 — 위 지문 참조)'}</div>
           <ol class="opts">
-            ${q.opts.map((o, i) => `<li><button class="opt" data-i="${i}"><span>${i + 1}</span>${renderJa(o, idx)}</button></li>`).join('')}
+            ${q.opts.map((o, i) => `<li><button class="opt" data-i="${i}"><span class="opt-num">${i + 1}.</span><span class="opt-text">${renderJa(o, idx)}</span></button></li>`).join('')}
           </ol>
+          <div class="qactions">
+            <button id="submit" class="primary" disabled>정답 확인</button>
+          </div>
           <div class="feedback" id="feedback"></div>
           <nav class="qnav">
             <button id="prev" ${n <= min ? 'disabled' : ''}>이전</button>
@@ -82,19 +79,36 @@ export async function renderQuestion(
 
   const optBtns = root.querySelectorAll<HTMLButtonElement>('.opt');
   const fb = root.querySelector<HTMLDivElement>('#feedback')!;
+  const submitBtn = root.querySelector<HTMLButtonElement>('#submit')!;
+  let picked = -1;
+  let graded = false;
+
+  const selectOption = (i: number) => {
+    if (graded) return;
+    picked = i;
+    optBtns.forEach((b, j) => b.classList.toggle('opt-selected', j === i));
+    submitBtn.disabled = false;
+  };
+  const submit = () => {
+    if (picked < 0 || graded) return;
+    graded = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = '확인됨';
+    gradeAndShow(q, picked, optBtns, fb, examId);
+  };
 
   optBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const picked = Number(btn.dataset.i);
-      gradeAndShow(q, picked, optBtns, fb, examId);
-    }, { signal });
+    btn.addEventListener('click', () => selectOption(Number(btn.dataset.i)), { signal });
   });
+  submitBtn.addEventListener('click', submit, { signal });
 
   const keyHandler = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement) return;
     if (e.key >= '1' && e.key <= '4') {
       const i = Number(e.key) - 1;
-      if (i < q.opts.length) optBtns[i]?.click();
+      if (i < q.opts.length) selectOption(i);
+    } else if (e.key === 'Enter' && picked >= 0 && !graded) {
+      submit();
     } else if (e.key === 'ArrowLeft' && n > min) {
       navigate({ name: 'question', examId, n: n - 1, from, to });
     } else if (e.key === 'ArrowRight' && n < max) {

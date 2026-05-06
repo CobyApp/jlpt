@@ -38,9 +38,9 @@ describe('renderQuestion', () => {
     const root = document.createElement('div');
     await renderQuestion(root, 'exam-a', 2, 1, 4);
 
-    const progress = root.querySelector('.question-progress');
+    const progress = root.querySelector('.qhdr-progress');
     expect(progress).not.toBeNull();
     expect(progress?.getAttribute('aria-valuenow')).toBe('50');
-    expect(root.textContent).toContain('2번째 / 4문제');
+    expect(root.textContent).toContain('2 / 4');
   });
 });
