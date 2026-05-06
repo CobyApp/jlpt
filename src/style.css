@@ -28,6 +28,27 @@
   --shadow: 0 34px 90px rgba(122, 65, 105, 0.13);
   --shadow-soft: 0 18px 48px rgba(122, 65, 105, 0.09);
   --blur: blur(22px) saturate(1.08);
+  --easing: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 0.16s;
+  --t-mid: 0.28s;
+  --t-slow: 0.45s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInPlain {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 html,
@@ -48,11 +69,17 @@ button, input { font: inherit; }
   width: min(1160px, calc(100% - 32px));
   margin: 0 auto;
   padding: 38px 0 64px;
+  animation: fadeIn var(--t-mid) var(--easing);
 }
 
 .study-shell {
   min-height: 100vh;
   padding-bottom: 48px;
+  animation: fadeInPlain var(--t-mid) var(--easing);
+}
+
+.error-banner {
+  animation: fadeIn var(--t-mid) var(--easing);
 }
 
 .hero {
@@ -118,23 +145,22 @@ button, input { font: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid rgba(190, 24, 93, 0.14);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
+  background: #fff;
   color: var(--accent-strong);
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
-  backdrop-filter: var(--blur);
-  box-shadow: 0 12px 28px rgba(190, 24, 93, 0.08);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--t-fast) var(--easing), box-shadow var(--t-fast) ease, background var(--t-fast) ease, border-color var(--t-fast) ease;
 }
 
 .resume:hover,
 .back:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 18px 38px rgba(190, 24, 93, 0.12);
+  background: #fff5fa;
+  box-shadow: 0 12px 24px rgba(190, 24, 93, 0.1);
 }
 
 .resume {
@@ -223,7 +249,7 @@ button, input { font: inherit; }
   border-radius: 18px;
   background: #fff;
   box-shadow: var(--shadow-soft);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform var(--t-fast) var(--easing), box-shadow var(--t-fast) var(--easing), border-color var(--t-fast) var(--easing);
 }
 
 .exam-card:hover {
@@ -339,19 +365,19 @@ button, input { font: inherit; }
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
   cursor: pointer;
-  box-shadow: 0 8px 22px rgba(122, 65, 105, 0.045);
-  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--t-fast) var(--easing), background var(--t-fast) ease, border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
 }
 
 .sec:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.95);
-  background: rgba(255, 245, 250, 0.9);
-  box-shadow: 0 16px 36px rgba(122, 65, 105, 0.09);
+  transform: translateY(-2px);
+  border-color: rgba(190, 24, 93, 0.22);
+  background: #fff7fb;
+  box-shadow: 0 16px 32px rgba(122, 65, 105, 0.1);
 }
 
 .sec-number {
@@ -410,19 +436,18 @@ button, input { font: inherit; }
 .toggle {
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #be185d, #ec4899);
+  background: var(--accent);
   color: white;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 16px 36px rgba(190, 24, 93, 0.18);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition: background var(--t-fast) ease, transform var(--t-fast) var(--easing), opacity var(--t-fast) ease;
 }
 
 .range-pick button:hover,
 .qnav button:not(:disabled):hover,
 .toggle:hover {
+  background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 22px 44px rgba(190, 24, 93, 0.22);
 }
 
 .range-pick button {
@@ -502,11 +527,19 @@ button, input { font: inherit; }
 
 .toggle {
   flex-shrink: 0;
-  padding: 11px 15px;
-  background: rgba(255, 255, 255, 0.68);
+  padding: 6px 12px;
+  background: #fff;
   color: var(--accent-strong);
-  border: 1px solid rgba(190, 24, 93, 0.14);
-  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toggle:hover {
+  background: #fff5fa;
+  border-color: rgba(190, 24, 93, 0.32);
+  color: var(--accent-strong);
 }
 
 .qmain {
@@ -571,8 +604,14 @@ button, input { font: inherit; }
   font-weight: 500;
   line-height: 1.78;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  transition: border-color var(--t-fast) ease, background var(--t-fast) ease, box-shadow var(--t-fast) ease, transform var(--t-fast) var(--easing);
+  animation: fadeIn var(--t-mid) var(--easing) backwards;
 }
+
+.opts li:nth-child(1) .opt { animation-delay: 0.04s; }
+.opts li:nth-child(2) .opt { animation-delay: 0.08s; }
+.opts li:nth-child(3) .opt { animation-delay: 0.12s; }
+.opts li:nth-child(4) .opt { animation-delay: 0.16s; }
 
 .opt-num {
   flex: 0 0 auto;
@@ -603,22 +642,30 @@ button, input { font: inherit; }
   margin-top: 18px;
   display: flex;
   justify-content: flex-end;
+  min-height: 44px;
 }
 
 .primary {
-  padding: 11px 22px;
+  min-width: 132px;
+  padding: 11px 24px;
   border: 0;
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
   font: inherit;
   font-weight: 700;
+  text-align: center;
   cursor: pointer;
-  transition: background 0.18s ease, opacity 0.18s ease;
+  transition: background var(--t-fast) ease, opacity var(--t-fast) ease, transform var(--t-fast) var(--easing);
 }
 
 .primary:hover:not(:disabled) {
   background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .primary:disabled {
@@ -666,6 +713,10 @@ button, input { font: inherit; }
   margin-top: 18px;
 }
 
+.feedback:not(:empty) {
+  animation: fadeIn var(--t-slow) var(--easing);
+}
+
 .verdict {
   margin-bottom: 10px;
   font-size: 17px;
@@ -688,11 +739,18 @@ button, input { font: inherit; }
 .expl-block {
   display: block;
   margin-top: 10px;
+  animation: fadeIn var(--t-slow) var(--easing) backwards;
 }
 
 .expl-block:first-child {
   margin-top: 0;
 }
+
+.expl-block:nth-child(1) { animation-delay: 0.0s; }
+.expl-block:nth-child(2) { animation-delay: 0.06s; }
+.expl-block:nth-child(3) { animation-delay: 0.12s; }
+.expl-block:nth-child(4) { animation-delay: 0.18s; }
+.expl-block:nth-child(n+5) { animation-delay: 0.24s; }
 
 .expl-block strong {
   display: inline-block;
