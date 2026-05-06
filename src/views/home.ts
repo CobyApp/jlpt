@@ -3,14 +3,33 @@ import { escapeHtml } from '../lib/html';
 import { getProgress, getLast } from '../state';
 import { ALL_CATEGORIES, categoryKo } from '../lib/categories';
 
+type HomeTab = 'exams' | 'cats';
+
+const TAB_KEY = 'jlpt:home-tab';
+
+function loadTab(): HomeTab {
+  const v = localStorage.getItem(TAB_KEY);
+  return v === 'cats' ? 'cats' : 'exams';
+}
+
+function saveTab(t: HomeTab) {
+  localStorage.setItem(TAB_KEY, t);
+}
+
 export async function renderHome(root: HTMLElement) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const idx = await loadIndex();
   const last = getLast();
   const totalQuestions = idx.exams.reduce((sum, e) => sum + e.questions, 0);
-  const answeredTotal = idx.exams.reduce((sum, e) => sum + Object.keys(getProgress(e.id)).length, 0);
+  const answeredTotal = idx.exams.reduce(
+    (sum, e) => sum + Object.keys(getProgress(e.id)).length,
+    0,
+  );
+  const overallProgress = totalQuestions
+    ? Math.round((answeredTotal / totalQuestions) * 100)
+    : 0;
 
-  const cards = idx.exams.map((e) => {
+  const examCards = idx.exams.map((e) => {
     const prog = getProgress(e.id);
     const answered = Object.keys(prog).length;
     const correct = Object.values(prog).filter((p) => p.correct).length;
@@ -34,7 +53,11 @@ export async function renderHome(root: HTMLElement) {
   }).join('');
 
   const resume = last
-    ? `<a class="resume" href="#/exam/${last.examId}/q/${last.questionN}"><strong>이어서 풀기</strong><span>${last.examId} · 문제 ${last.questionN}</span></a>`
+    ? `<a class="resume-pill" href="#/exam/${last.examId}/q/${last.questionN}">
+         <span class="resume-pill-label">이어서 풀기</span>
+         <span class="resume-pill-meta">${escapeHtml(last.examId)} · 문제 ${last.questionN}</span>
+         <span class="resume-pill-arrow">→</span>
+       </a>`
     : '';
 
   const categoriesByGroup = ALL_CATEGORIES.reduce<Record<string, typeof ALL_CATEGORIES>>((acc, c) => {
@@ -61,37 +84,60 @@ export async function renderHome(root: HTMLElement) {
       </div>`;
   }).join('');
 
+  const tab = loadTab();
+
   root.innerHTML = `
     <div class="app-shell">
-      <header class="hero home-hero">
-        <div>
-          <p class="hero-kicker">JLPT N1 Study Deck</p>
-          <h1>오늘도 한 회차씩, 선명하게.</h1>
-          <p class="hero-copy">회차별 문제와 한국어 해설, 단어 팝오버를 한 화면에서 집중해서 학습하세요.</p>
+      <header class="home-bar">
+        <div class="home-bar-title">
+          <span class="home-kicker">JLPT N1</span>
+          <h1 class="home-title">오늘도 한 회차씩, 선명하게.</h1>
         </div>
-        ${resume}
+        <div class="home-bar-meta">
+          <div class="home-progress" role="progressbar" aria-label="전체 진도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${overallProgress}">
+            <div class="home-progress-track"><i style="width:${overallProgress}%"></i></div>
+            <span class="home-progress-label">${answeredTotal}<small>/${totalQuestions}</small></span>
+          </div>
+          ${resume}
+        </div>
       </header>
-      <section class="dashboard-stats" aria-label="학습 요약">
-        <div class="stat-card">
-          <span>회차</span>
-          <strong>${idx.exams.length}개</strong>
-        </div>
-        <div class="stat-card">
-          <span>문제</span>
-          <strong>총 ${totalQuestions}문제</strong>
-        </div>
-        <div class="stat-card">
-          <span>진도</span>
-          <strong>${answeredTotal}/${totalQuestions}</strong>
-        </div>
+
+      <nav class="tab-bar" role="tablist" aria-label="학습 모드">
+        <button class="tab ${tab === 'exams' ? 'is-active' : ''}" role="tab" data-tab="exams" aria-selected="${tab === 'exams'}">회차별 풀이</button>
+        <button class="tab ${tab === 'cats' ? 'is-active' : ''}" role="tab" data-tab="cats" aria-selected="${tab === 'cats'}">영역별 모아풀기</button>
+      </nav>
+
+      <section class="tab-pane ${tab === 'exams' ? '' : 'is-hidden'}" data-pane="exams" role="tabpanel">
+        <div class="cards">${examCards}</div>
       </section>
-      <section class="home-section">
-        <div class="section-heading"><h2>회차별 풀이</h2><span class="section-sub">최신 모의고사부터 차례로</span></div>
-        <div class="cards">${cards}</div>
-      </section>
-      <section class="home-section">
-        <div class="section-heading"><h2>영역별 모음</h2><span class="section-sub">전 회차에서 같은 유형만 모아 풀기</span></div>
+
+      <section class="tab-pane ${tab === 'cats' ? '' : 'is-hidden'}" data-pane="cats" role="tabpanel">
         ${catSection}
       </section>
     </div>`;
+
+  const tabs = root.querySelectorAll<HTMLButtonElement>('.tab');
+  const panes = root.querySelectorAll<HTMLElement>('.tab-pane');
+  tabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = (btn.dataset.tab as HomeTab) || 'exams';
+      saveTab(next);
+      tabs.forEach((b) => {
+        const active = b.dataset.tab === next;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+      panes.forEach((p) => {
+        const active = p.dataset.pane === next;
+        p.classList.toggle('is-hidden', !active);
+        if (active) {
+          // Re-trigger fade animation on tab switch
+          p.classList.remove('tab-pane-enter');
+          // force reflow
+          void p.offsetWidth;
+          p.classList.add('tab-pane-enter');
+        }
+      });
+    });
+  });
 }

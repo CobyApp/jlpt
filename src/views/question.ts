@@ -39,7 +39,7 @@ export async function renderQuestion(
   root.innerHTML = `
     <div class="study-shell">
       <header class="qhdr">
-        <a href="#/exam/${examId}" class="back" title="${escapeHtml(exam.title)}">←</a>
+        <a href="#/exam/${examId}" class="back" title="${escapeHtml(exam.title)}" aria-label="회차로 돌아가기"></a>
         <div class="qhdr-info">
           <span class="qhdr-pos">${n} / ${max}</span>
           <span class="qhdr-cat">${categoryKo(q.category)}</span>${q.src_label ? `<span class="qhdr-src">${escapeHtml(q.src_label)} · ${q.src_n}</span>` : ''}

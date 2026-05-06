@@ -36,9 +36,11 @@ describe('renderHome', () => {
     await renderHome(root);
 
     expect(root.querySelector('.app-shell')).not.toBeNull();
-    expect(root.querySelector('.hero-kicker')?.textContent).toContain('JLPT N1');
-    expect(root.querySelectorAll('.stat-card')).toHaveLength(3);
-    expect(root.textContent).toContain('총 10문제');
+    expect(root.querySelector('.home-kicker')?.textContent).toContain('JLPT N1');
+    expect(root.querySelectorAll('.tab')).toHaveLength(2);
+    expect(root.querySelector('.home-progress')?.getAttribute('aria-valuenow')).toBe('20');
+    expect(root.querySelector('[data-pane="exams"]')?.classList.contains('is-hidden')).toBe(false);
+    expect(root.querySelector('[data-pane="cats"]')?.classList.contains('is-hidden')).toBe(true);
     expect(root.querySelector('.progress-track')?.getAttribute('aria-valuenow')).toBe('20');
     expect(root.textContent).toContain('정답률 50%');
   });
