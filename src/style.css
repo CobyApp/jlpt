@@ -1200,13 +1200,15 @@ button, input { font: inherit; }
 .vocab-popover {
   position: absolute;
   z-index: 1000;
-  max-width: 300px;
+  max-width: 320px;
+  min-width: 240px;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 16px 36px rgba(122, 65, 105, 0.18);
   font-size: 14px;
+  animation: fadeIn var(--t-fast) var(--easing);
 }
 
 .vp-w {
@@ -1232,6 +1234,43 @@ button, input { font: inherit; }
   line-height: 1.55;
   font-size: 14px;
   color: #3b2e34;
+}
+
+.vp-hanja {
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--line);
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.vp-hanja li {
+  display: grid;
+  grid-template-columns: 26px 36px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.vp-h-c {
+  font-family: var(--font-ja);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  text-align: center;
+}
+
+.vp-h-on {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.vp-h-kun {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 ruby rt {

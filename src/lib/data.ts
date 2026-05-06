@@ -7,6 +7,7 @@ const url = (path: string) => `${BASE}data/${path}`.replace(/\/+/g, '/');
 let indexP: Promise<IndexFile> | null = null;
 const examP = new Map<string, Promise<Exam>>();
 let vocabP: Promise<VocabEntry[]> | null = null;
+let kanjiKoP: Promise<Record<string, [string, string]>> | null = null;
 
 async function fetchJson<T>(path: string): Promise<T> {
   const r = await fetch(url(path));
@@ -77,8 +78,17 @@ export function loadVocab(): Promise<VocabEntry[]> {
   return vocabP;
 }
 
+/** Map of kanji -> [Korean on-yomi (음), Korean kun-style meaning (뜻)]. */
+export function loadKanjiKo(): Promise<Record<string, [string, string]>> {
+  if (!kanjiKoP) {
+    kanjiKoP = fetchJson<Record<string, [string, string]>>('kanji_ko.json').catch(() => ({}));
+  }
+  return kanjiKoP;
+}
+
 export function _resetCache() {
   indexP = null;
   examP.clear();
   vocabP = null;
+  kanjiKoP = null;
 }
