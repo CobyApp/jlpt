@@ -3,6 +3,7 @@ import { categoryKo } from '../lib/categories';
 import { escapeHtml } from '../lib/html';
 import { buildIndex, matchVocab } from '../lib/vocab-match';
 import { isInWordbook, toggleWordbook } from '../state';
+import { openStudyModal } from '../lib/study-modal';
 import { navigate } from '../router';
 import type { VocabEntry, Question } from '../types';
 
@@ -180,6 +181,7 @@ export async function renderWordlist(
           <p class="wl-bar-meta">${escapeHtml(exam.title)}</p>
         </div>
         <div class="wl-bar-actions">
+          <button id="wl-study" class="ghost wl-study" type="button">📚 외우기</button>
           <button id="wl-start" class="primary" type="button">${startLabel()}</button>
         </div>
       </header>
@@ -283,6 +285,20 @@ export async function renderWordlist(
     if (rangeTo != null) to = rangeTo;
     const startN = from ?? 1;
     navigate({ name: 'question', examId, n: startN, from, to });
+  });
+
+  // Study current filtered words
+  root.querySelector<HTMLButtonElement>('#wl-study')!.addEventListener('click', () => {
+    const list = computeWords();
+    if (!list.length) return;
+    const summary = isAll() ? '전체' : `${activeSet.size}개 영역`;
+    openStudyModal({
+      words: list,
+      kanjiKo,
+      title: `${exam.title} · ${summary} 외우기`,
+      order: 'weakest',
+      onClose: () => refreshResults(),
+    });
   });
 
   update();

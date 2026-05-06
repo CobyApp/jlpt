@@ -2,6 +2,7 @@ const KEY_PROGRESS = 'jlpt:progress';
 const KEY_LAST = 'jlpt:last';
 const KEY_SETTINGS = 'jlpt:settings';
 const KEY_WORDBOOK = 'jlpt:wordbook';
+const KEY_SRS = 'jlpt:srs';
 
 export interface AnswerRec { picked: number; correct: boolean; ts: number }
 export type ExamProgress = Record<number, AnswerRec>;
@@ -101,4 +102,59 @@ export function toggleWordbook(w: string): boolean {
 
 export function clearWordbook() {
   write(KEY_WORDBOOK, []);
+}
+
+// ─── SRS (Spaced Repetition) ──────────────────────────────────────────
+/**
+ * Per-word study state.
+ *  level: -1 = never reviewed, 0..5 = mastery level (5 = mastered)
+ *  seen: total times shown
+ *  correct: total times marked "알아요"
+ *  wrong: total times marked "모르겠어요"
+ *  lastTs: last review timestamp
+ */
+export interface SrsRec {
+  level: number;
+  seen: number;
+  correct: number;
+  wrong: number;
+  lastTs: number;
+}
+
+const DEFAULT_SRS: SrsRec = { level: -1, seen: 0, correct: 0, wrong: 0, lastTs: 0 };
+
+export function getAllSrs(): Record<string, SrsRec> {
+  return read<Record<string, SrsRec>>(KEY_SRS, {});
+}
+
+export function getSrs(w: string): SrsRec {
+  return getAllSrs()[w] ?? { ...DEFAULT_SRS };
+}
+
+export type SrsAction = 'again' | 'skip' | 'easy';
+
+export function recordSrs(w: string, action: SrsAction) {
+  const all = getAllSrs();
+  const cur = all[w] ?? { ...DEFAULT_SRS };
+  cur.seen += 1;
+  cur.lastTs = Date.now();
+  if (action === 'again') {
+    cur.wrong += 1;
+    cur.level = Math.max(0, cur.level >= 0 ? cur.level - 1 : 0);
+  } else if (action === 'easy') {
+    cur.correct += 1;
+    cur.level = Math.min(5, cur.level < 0 ? 1 : cur.level + 1);
+  } else {
+    // skip — count seen only, bump unseen→0
+    if (cur.level < 0) cur.level = 0;
+  }
+  all[w] = cur;
+  write(KEY_SRS, all);
+}
+
+export function clearSrs() { write(KEY_SRS, {}); }
+export function clearSrsFor(words: string[]) {
+  const all = getAllSrs();
+  for (const w of words) delete all[w];
+  write(KEY_SRS, all);
 }

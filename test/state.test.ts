@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   recordAnswer, getProgress, setLast, getLast, getSettings, setSettings,
   getWordbook, addToWordbook, removeFromWordbook, isInWordbook, toggleWordbook, clearWordbook,
+  getSrs, recordSrs, clearSrs,
 } from '../src/state';
 
 beforeEach(() => localStorage.clear());
@@ -63,5 +64,49 @@ describe('wordbook', () => {
     const list = getWordbook();
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({ w: '古い', ts: 0 });
+  });
+});
+
+describe('SRS', () => {
+  it('default state for unseen word', () => {
+    expect(getSrs('未見').level).toBe(-1);
+    expect(getSrs('未見').seen).toBe(0);
+  });
+
+  it('easy → level up, capped at 5', () => {
+    for (let i = 0; i < 7; i++) recordSrs('判断', 'easy');
+    const s = getSrs('判断');
+    expect(s.level).toBe(5);
+    expect(s.correct).toBe(7);
+    expect(s.seen).toBe(7);
+  });
+
+  it('again → level down, floor 0', () => {
+    recordSrs('概念', 'easy');
+    recordSrs('概念', 'easy');
+    expect(getSrs('概念').level).toBe(2);
+    recordSrs('概念', 'again');
+    expect(getSrs('概念').level).toBe(1);
+    recordSrs('概念', 'again');
+    expect(getSrs('概念').level).toBe(0);
+    recordSrs('概念', 'again');
+    expect(getSrs('概念').level).toBe(0); // floor
+    expect(getSrs('概念').wrong).toBe(3);
+  });
+
+  it('skip → seen++ but no level change', () => {
+    recordSrs('観点', 'skip');
+    expect(getSrs('観点').level).toBe(0); // bumped from -1 to 0
+    expect(getSrs('観点').seen).toBe(1);
+    recordSrs('観点', 'easy');
+    expect(getSrs('観点').level).toBe(1);
+    recordSrs('観点', 'skip');
+    expect(getSrs('観点').level).toBe(1); // unchanged
+  });
+
+  it('clearSrs', () => {
+    recordSrs('w1', 'easy');
+    clearSrs();
+    expect(getSrs('w1').level).toBe(-1);
   });
 });

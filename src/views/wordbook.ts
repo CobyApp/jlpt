@@ -1,6 +1,7 @@
 import { loadVocab, loadKanjiKo } from '../lib/data';
 import { escapeHtml } from '../lib/html';
-import { getWordbook, removeFromWordbook, clearWordbook, type WordbookEntry } from '../state';
+import { getWordbook, removeFromWordbook, clearWordbook, getSrs, type WordbookEntry } from '../state';
+import { openStudyModal } from '../lib/study-modal';
 import type { VocabEntry } from '../types';
 
 type SortKey = 'recent' | 'oldest' | 'len' | 'reading';
@@ -50,6 +51,13 @@ export async function renderWordbook(root: HTMLElement) {
   const map = new Map(vocab.map((v) => [v.w, v]));
 
   // ── HTML helpers ──
+  const masteryBadge = (w: string): string => {
+    const s = getSrs(w);
+    if (s.level < 0) return '';
+    if (s.level >= 5) return `<span class="wb-mastery is-mastered" title="마스터">✓ 마스터</span>`;
+    return `<span class="wb-mastery" title="학습 레벨">Lv.${s.level}</span>`;
+  };
+
   const cardHTML = (e: WordbookEntry & VocabEntry) => `
     <article class="wb-card" data-w="${escapeHtml(e.w)}">
       <header class="wb-head">
@@ -59,6 +67,7 @@ export async function renderWordbook(root: HTMLElement) {
       <div class="wb-r">${escapeHtml(e.r || '—')}</div>
       <div class="wb-m">${escapeHtml(e.m_ko || e.m || '(의미 없음)')}</div>
       ${renderHanja(e.w, kanjiKo)}
+      ${masteryBadge(e.w) ? `<div class="wb-foot">${masteryBadge(e.w)}</div>` : ''}
     </article>`;
 
   const bodyHTML = (count: number, listHTML: string) => count === 0
@@ -94,6 +103,7 @@ export async function renderWordbook(root: HTMLElement) {
             <option value="len" ${initialSort==='len'?'selected':''}>긴 단어순</option>
             <option value="reading" ${initialSort==='reading'?'selected':''}>가나순</option>
           </select>
+          <button id="wb-study" class="primary wb-study" type="button" ${initialList.length === 0 ? 'disabled' : ''}>📚 외우기 시작</button>
           <button id="wb-clear" class="wb-clear" type="button" ${initialList.length === 0 ? 'hidden' : ''}>전체 비우기</button>
         </div>
       </header>
@@ -104,6 +114,7 @@ export async function renderWordbook(root: HTMLElement) {
   const bodyEl = root.querySelector<HTMLElement>('#wb-body')!;
   const clearBtn = root.querySelector<HTMLButtonElement>('#wb-clear')!;
   const sortSel = root.querySelector<HTMLSelectElement>('#wb-sort')!;
+  const studyBtn = root.querySelector<HTMLButtonElement>('#wb-study')!;
 
   // ── In-place updaters ──
   const refresh = (animate = true) => {
@@ -113,6 +124,7 @@ export async function renderWordbook(root: HTMLElement) {
     metaEl.textContent = `${sorted.length}개 단어 저장됨`;
     if (sorted.length === 0) clearBtn.setAttribute('hidden', '');
     else clearBtn.removeAttribute('hidden');
+    studyBtn.disabled = sorted.length === 0;
     bodyEl.innerHTML = bodyHTML(sorted.length, sorted.map(cardHTML).join(''));
     if (animate) {
       bodyEl.classList.remove('wl-fade-in');
@@ -154,5 +166,20 @@ export async function renderWordbook(root: HTMLElement) {
       clearWordbook();
       refresh();
     }
+  });
+
+  studyBtn.addEventListener('click', () => {
+    const wb = getWordbook();
+    const enriched = wb
+      .map((e) => map.get(e.w))
+      .filter((x): x is VocabEntry => !!x);
+    if (!enriched.length) return;
+    openStudyModal({
+      words: enriched,
+      kanjiKo,
+      title: '단어장 외우기',
+      order: 'weakest',
+      onClose: () => refresh(false),
+    });
   });
 }
