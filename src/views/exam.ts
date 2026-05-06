@@ -60,7 +60,6 @@ export async function renderExam(root: HTMLElement, examId: string) {
             <span>${s.from}–${s.to}</span>
             <span>${s.to - s.from + 1}문제</span>
           </span>
-          <span class="sec-pick">${isSelected ? '✓ 선택됨' : '선택'}</span>
         </li>`;
     }).join('');
 
