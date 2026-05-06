@@ -158,7 +158,54 @@ function gradeAndShow(
   const expl = q.expl_ko ?? q.expl ?? '(해설 없음)';
   fb.innerHTML = `
     <div class="verdict ${correct ? 'ok' : 'no'}">${verdict}</div>
-    <div class="expl">${escapeHtml(expl)}</div>
+    <div class="expl">${formatExpl(expl)}</div>
   `;
   fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+const EXPL_LABELS = ['정답', '핵심 이유', '핵심', '이유', '해설', '오답', '오답 분석', '포인트', '학습 포인트', '어휘', '문법', '해석', '의미'];
+const EXPL_LABEL_RE = new RegExp(`(?:^|\\s)(${EXPL_LABELS.map(l => l.replace(/ /g, '\\s')).join('|')})\\s*[:：]\\s*`, 'g');
+
+function formatExpl(text: string): string {
+  const matches: { label: string; start: number; bodyStart: number }[] = [];
+  EXPL_LABEL_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = EXPL_LABEL_RE.exec(text)) !== null) {
+    const labelStart = m.index + (m[0].length - m[0].trimStart().length);
+    matches.push({ label: m[1], start: labelStart, bodyStart: m.index + m[0].length });
+  }
+  if (matches.length === 0) {
+    return `<span class="expl-block">${escapeHtml(text.trim())}</span>`;
+  }
+  const blocks: string[] = [];
+  // Lead text before first label
+  if (matches[0].start > 0) {
+    const lead = text.slice(0, matches[0].start).trim();
+    if (lead) blocks.push(`<span class="expl-block">${escapeHtml(lead)}</span>`);
+  }
+  for (let i = 0; i < matches.length; i++) {
+    const cur = matches[i];
+    const next = matches[i + 1];
+    const body = text.slice(cur.bodyStart, next ? next.start : undefined).trim().replace(/[.,]\s*$/, '');
+    blocks.push(formatExplBlock(cur.label, body));
+  }
+  return blocks.join('');
+}
+
+function formatExplBlock(label: string, body: string): string {
+  // For 오답, try to parse "1. ~, 2. ~, 3. ~" into a list
+  if (/^오답/.test(label)) {
+    const items = body.split(/(?:^|[,，、])\s*(?=\d\s*[.\.]\s*)/).map(s => s.trim()).filter(Boolean);
+    if (items.length >= 2) {
+      const lis = items.map((it) => {
+        const itemMatch = it.match(/^(\d)\s*[.\.]\s*(.*)$/s);
+        if (itemMatch) {
+          return `<li><strong>${itemMatch[1]}.</strong> ${escapeHtml(itemMatch[2])}</li>`;
+        }
+        return `<li>${escapeHtml(it)}</li>`;
+      }).join('');
+      return `<span class="expl-block"><strong>${escapeHtml(label)}:</strong><ul>${lis}</ul></span>`;
+    }
+  }
+  return `<span class="expl-block"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(body)}</span>`;
 }
