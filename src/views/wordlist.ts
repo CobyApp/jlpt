@@ -181,7 +181,10 @@ export async function renderWordlist(
           <p class="wl-bar-meta">${escapeHtml(exam.title)}</p>
         </div>
         <div class="wl-bar-actions">
-          <button id="wl-study" class="ghost wl-study" type="button">📚 외우기</button>
+          <button id="wl-study" class="study-cta" type="button">
+            <span class="study-cta-icon" aria-hidden="true">📚</span>
+            <span class="study-cta-label">외우기</span>
+          </button>
           <button id="wl-start" class="primary" type="button">${startLabel()}</button>
         </div>
       </header>

@@ -103,7 +103,11 @@ export async function renderWordbook(root: HTMLElement) {
             <option value="len" ${initialSort==='len'?'selected':''}>긴 단어순</option>
             <option value="reading" ${initialSort==='reading'?'selected':''}>가나순</option>
           </select>
-          <button id="wb-study" class="primary wb-study" type="button" ${initialList.length === 0 ? 'disabled' : ''}>📚 외우기 시작</button>
+          <button id="wb-study" class="study-cta" type="button" ${initialList.length === 0 ? 'disabled' : ''}>
+            <span class="study-cta-icon" aria-hidden="true">📚</span>
+            <span class="study-cta-label">외우기 시작</span>
+            <span class="study-cta-arrow" aria-hidden="true">→</span>
+          </button>
           <button id="wb-clear" class="wb-clear" type="button" ${initialList.length === 0 ? 'hidden' : ''}>전체 비우기</button>
         </div>
       </header>
