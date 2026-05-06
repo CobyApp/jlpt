@@ -4,14 +4,15 @@ import { escapeHtml } from '../lib/html';
 import { navigate } from '../router';
 import type { Question } from '../types';
 
-interface Section { category: string; from: number; to: number; idx: number }
+interface Section { key: string; from: number; to: number; idx: number }
 
-function groupBySection(qs: Question[]): Section[] {
+function groupQuestions(qs: Question[], keyOf: (q: Question) => string): Section[] {
   const out: Section[] = [];
   for (const q of qs) {
+    const k = keyOf(q);
     const last = out[out.length - 1];
-    if (last && last.category === q.category) last.to = q.n;
-    else out.push({ category: q.category, from: q.n, to: q.n, idx: out.length });
+    if (last && last.key === k) last.to = q.n;
+    else out.push({ key: k, from: q.n, to: q.n, idx: out.length });
   }
   return out;
 }
@@ -19,40 +20,52 @@ function groupBySection(qs: Question[]): Section[] {
 export async function renderExam(root: HTMLElement, examId: string) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const exam = await loadExam(examId);
-  const sections = groupBySection(exam.questions);
+  const isCategoryDrill = examId.startsWith('cat:');
+  // Regular exam: group by category (= section). Cat drill: group by source exam (= 회차).
+  const keyOf = (q: Question): string => isCategoryDrill
+    ? (q.src_label ?? '')
+    : q.category;
+  const sections = groupQuestions(exam.questions, keyOf);
   const max = exam.questions.length;
+  const groupHeading = isCategoryDrill ? '회차 선택' : '섹션 선택';
+  const labelOf = (s: Section): string => isCategoryDrill
+    ? s.key
+    : sectionLabelKo(s.idx + 1, s.key).replace(/^問題\d+\s*/, '');
+  const numberOf = (s: Section): string => isCategoryDrill
+    ? `회차 ${s.idx + 1}`
+    : `問題${s.idx + 1}`;
 
   // ── State ──
   const selected = new Set<string>(); // empty = none
 
   const orderedSelected = (): Section[] =>
-    sections.filter((s) => selected.has(s.category));
+    sections.filter((s) => selected.has(s.key));
 
   const summary = () => {
     const list = orderedSelected();
+    const groupNoun = isCategoryDrill ? '회차' : '영역';
     if (list.length === 0) {
-      return { label: '영역을 선택하세요', range: `총 ${max}문제`, count: 0, hasSelection: false };
+      return { label: `${groupNoun}을 선택하세요`, range: `총 ${max}문제`, count: 0, hasSelection: false };
     }
     const totalQs = list.reduce((sum, s) => sum + (s.to - s.from + 1), 0);
     if (list.length === 1) {
       const s = list[0];
-      const i = s.idx + 1;
-      const label = `問題${i} ${sectionLabelKo(i, s.category).replace(/^問題\d+\s*/, '')}`;
+      const label = isCategoryDrill ? s.key : `問題${s.idx + 1} ${labelOf(s)}`;
       return { label, range: `${s.from}–${s.to} · ${totalQs}문제`, count: totalQs, hasSelection: true };
     }
-    const labels = list.map((s) => `問題${s.idx + 1}`).join(', ');
+    const tags = list.map((s) => isCategoryDrill ? s.key : `問題${s.idx + 1}`).join(', ');
     return {
-      label: `${list.length}개 영역 선택`,
-      range: `${labels} · ${totalQs}문제`,
+      label: `${list.length}개 ${groupNoun} 선택`,
+      range: `${tags} · ${totalQs}문제`,
       count: totalQs,
       hasSelection: true,
     };
   };
 
   const sectionHTML = sections.map((s) => `
-    <li class="sec" data-category="${escapeHtml(s.category)}" tabindex="0" role="button" aria-pressed="false">
-      <span class="sec-number">問題${s.idx + 1}</span>
-      <span class="sec-label">${sectionLabelKo(s.idx + 1, s.category).replace(/^問題\d+\s*/, '')}</span>
+    <li class="sec" data-key="${escapeHtml(s.key)}" tabindex="0" role="button" aria-pressed="false">
+      <span class="sec-number">${escapeHtml(numberOf(s))}</span>
+      <span class="sec-label">${escapeHtml(labelOf(s))}</span>
       <span class="sec-meta">
         <span>${s.from}–${s.to}</span>
         <span>${s.to - s.from + 1}문제</span>
@@ -63,17 +76,17 @@ export async function renderExam(root: HTMLElement, examId: string) {
   root.innerHTML = `
     <div class="app-shell">
       <header class="hero exam-hero">
-        <a href="#/" class="back">회차 목록으로</a>
-        <p class="hero-kicker">Exam Overview</p>
+        <a href="#/" class="back">${isCategoryDrill ? '홈으로' : '회차 목록으로'}</a>
+        <p class="hero-kicker">${isCategoryDrill ? 'Category Drill' : 'Exam Overview'}</p>
         <h1>${escapeHtml(exam.title)}</h1>
-        <p class="hero-copy">${exam.questions.length}문제 · ${Object.keys(exam.passages).length}지문 · 풀고 싶은 영역을 선택하세요. (복수 선택 가능)</p>
+        <p class="hero-copy">${exam.questions.length}문제 · ${Object.keys(exam.passages).length}지문 · 풀고 싶은 ${isCategoryDrill ? '회차' : '영역'}를 선택하세요. (복수 선택 가능)</p>
       </header>
 
       <main class="exam-main panel">
         <section>
           <div class="section-heading">
-            <p class="eyebrow">Section</p>
-            <h2>섹션 선택</h2>
+            <p class="eyebrow">${isCategoryDrill ? 'Mock Tests' : 'Section'}</p>
+            <h2>${groupHeading}</h2>
             <div class="section-heading-actions">
               <button id="reset-all" class="ghost-link" type="button" disabled>선택 해제</button>
               <button id="select-all" class="ghost-link" type="button">전체 선택</button>
@@ -108,7 +121,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
   // ── In-place updaters ──
   const refreshCards = () => {
     secList.querySelectorAll<HTMLLIElement>('.sec').forEach((li) => {
-      const isSelected = selected.has(li.dataset.category!);
+      const isSelected = selected.has(li.dataset.key!);
       li.classList.toggle('is-selected', isSelected);
       li.setAttribute('aria-pressed', String(isSelected));
     });
@@ -131,9 +144,9 @@ export async function renderExam(root: HTMLElement, examId: string) {
 
   // ── Event wiring ──
   const togglePick = (li: HTMLLIElement) => {
-    const cat = li.dataset.category!;
-    if (selected.has(cat)) selected.delete(cat);
-    else selected.add(cat);
+    const k = li.dataset.key!;
+    if (selected.has(k)) selected.delete(k);
+    else selected.add(k);
     update();
   };
 
@@ -156,7 +169,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
   });
 
   selectAllBtn.addEventListener('click', () => {
-    for (const s of sections) selected.add(s.category);
+    for (const s of sections) selected.add(s.key);
     update();
   });
 
@@ -171,7 +184,9 @@ export async function renderExam(root: HTMLElement, examId: string) {
   wordsBtn.addEventListener('click', () => {
     const list = orderedSelected();
     if (list.length === 0) return;
-    const sections = list.map((s) => s.category);
+    // For cat drill, the "section" key is src_label (a 회차 label).
+    // For regular exam, it's a category key.
+    const sections = list.map((s) => s.key);
     navigate({ name: 'wordlist', examId, sections });
   });
 

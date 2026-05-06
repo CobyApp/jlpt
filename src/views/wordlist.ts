@@ -6,14 +6,15 @@ import { isInWordbook, toggleWordbook } from '../state';
 import { navigate } from '../router';
 import type { VocabEntry, Question } from '../types';
 
-interface SectionDef { category: string; from: number; to: number; idx: number }
+interface SectionDef { key: string; from: number; to: number; idx: number }
 
-function groupSections(qs: Question[]): SectionDef[] {
+function groupQuestions(qs: Question[], keyOf: (q: Question) => string): SectionDef[] {
   const out: SectionDef[] = [];
   for (const q of qs) {
+    const k = keyOf(q);
     const last = out[out.length - 1];
-    if (last && last.category === q.category) last.to = q.n;
-    else out.push({ category: q.category, from: q.n, to: q.n, idx: out.length });
+    if (last && last.key === k) last.to = q.n;
+    else out.push({ key: k, from: q.n, to: q.n, idx: out.length });
   }
   return out;
 }
@@ -46,8 +47,16 @@ export async function renderWordlist(
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const [exam, vocab, kanjiKo] = await Promise.all([loadExam(examId), loadVocab(), loadKanjiKo()]);
   const idx = buildIndex(vocab);
-  const sections = groupSections(exam.questions);
-  const validCats = new Set(sections.map((s) => s.category));
+  const isCategoryDrill = examId.startsWith('cat:');
+  const keyOf = (q: Question): string => isCategoryDrill ? (q.src_label ?? '') : q.category;
+  const sections = groupQuestions(exam.questions, keyOf);
+  const validKeys = new Set(sections.map((s) => s.key));
+  const labelOf = (s: SectionDef): string => isCategoryDrill
+    ? s.key
+    : categoryKo(s.key);
+  const numberOf = (s: SectionDef): string => isCategoryDrill
+    ? `회차 ${s.idx + 1}`
+    : `問題${s.idx + 1}`;
 
   // Per-question vocab matches
   const perQ = new Map<number, Set<string>>();
@@ -78,7 +87,7 @@ export async function renderWordlist(
   const activeSet = new Set<string>();
   if (initial.sections) {
     for (const s of initial.sections) {
-      if (validCats.has(s)) activeSet.add(s);
+      if (validKeys.has(s)) activeSet.add(s);
     }
   }
   let rangeFrom: number | undefined = initial.from;
@@ -92,7 +101,7 @@ export async function renderWordlist(
     const ws = new Set<string>();
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
-      if (key !== 'all' && q.category !== key) continue;
+      if (key !== 'all' && keyOf(q) !== key) continue;
       for (const w of perQ.get(q.n) ?? []) ws.add(w);
     }
     return ws.size;
@@ -102,7 +111,7 @@ export async function renderWordlist(
     const wordSet = new Set<string>();
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
-      if (!isAll() && !activeSet.has(q.category)) continue;
+      if (!isAll() && !activeSet.has(keyOf(q))) continue;
       const set = perQ.get(q.n);
       if (!set) continue;
       for (const w of set) wordSet.add(w);
@@ -119,9 +128,9 @@ export async function renderWordlist(
     const items: { key: string; num: string; label: string }[] = [
       { key: 'all', num: '', label: '전체' },
       ...sections.map((s) => ({
-        key: s.category,
-        num: `問題${s.idx + 1}`,
-        label: categoryKo(s.category),
+        key: s.key,
+        num: numberOf(s),
+        label: labelOf(s),
       })),
     ];
     return items.map((it) => {
@@ -263,7 +272,7 @@ export async function renderWordlist(
   });
 
   startBtn.addEventListener('click', () => {
-    const list = sections.filter((s) => activeSet.has(s.category));
+    const list = sections.filter((s) => activeSet.has(s.key));
     let from: number | undefined;
     let to: number | undefined;
     if (list.length > 0) {
