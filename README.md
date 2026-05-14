@@ -2,7 +2,7 @@
 
 본인 학습용 정적 N1 모의고사 풀이 SPA. 11회차 (2018 公式問題集 + 2020.12 ~ 2025.7) · 단어 클릭 → 한국어 의미 + 한자 뜻음.
 
-> **Live**: https://coby5502.github.io/jlpt/
+> **Live**: https://cobyapp.github.io/jlpt/
 
 ## 주요 기능
 
