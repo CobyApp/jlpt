@@ -9,7 +9,7 @@ JLPT N1 corpus 한국어 번역 파이프라인.
 출력: data/n1_corpus_ko/ (입력과 같은 스키마, 영문 자리에 한국어 추가).
 """
 from __future__ import annotations
-import argparse, hashlib, json, os, sys
+import argparse, hashlib, json, os, re, sys
 from pathlib import Path
 from anthropic import Anthropic
 
@@ -92,11 +92,48 @@ def translate_exam(client: Anthropic, cache: dict, exam_path: Path):
             )
             q['expl_ko'] = call(client, expl_sys, prompt, cache)
 
+    # listening: translate audio-script translation + generate korean explanation
+    if exam.get('listening'):
+        translate_listening(client, cache, exam['listening'])
+
     DST_EXAMS = DST / 'exams'
     DST_EXAMS.mkdir(parents=True, exist_ok=True)
     out_path = DST_EXAMS / exam_path.name
     out_path.write_text(json.dumps(exam, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print(f'  {exam_path.name} done')
+
+
+def translate_listening(client: Anthropic, cache: dict, listening: dict):
+    """Translate listening_script_translation (en) -> ko, and synthesize Korean explanation."""
+    tr_sys = (
+        '당신은 일본어 학습 자료 번역가입니다. '
+        'JLPT 청해 음성의 영문 번역을 한국어로 자연스럽게 번역하세요. '
+        '대화체는 대화체로, 개행(<br>)은 그대로 보존. 한국어만 출력.'
+    )
+    expl_sys = (
+        '당신은 JLPT N1 청해 해설 작성자입니다. '
+        '주어진 음성 원문 텍스트와 정답을 참고하여, 한국어로 다음 형식의 해설을 작성하세요:\n\n'
+        '1. 정답 이유 (1~2문장; 본문 어디서 단서가 나왔는지)\n'
+        '2. 핵심 표현/어휘 (1~3개 bullet)\n'
+        '3. 오답 분석 (필요한 경우)\n\n'
+        '한국어로만 작성. 마크다운 형식 사용 가능.'
+    )
+    for sub in listening['subsections']:
+        for q in sub['questions']:
+            if q.get('translation_en'):
+                q['translation_ko'] = call(client, tr_sys, q['translation_en'], cache)
+            script_text = re.sub(r'<rt>.*?</rt>', '', q.get('script_html', ''), flags=re.S)
+            script_text = re.sub(r'<[^>]+>', '', script_text).strip()
+            if script_text and q.get('correct', -1) >= 0:
+                correct_idx = q['correct']
+                opts = q.get('opts') or []
+                correct_text = opts[correct_idx] if 0 <= correct_idx < len(opts) else f'(no.{correct_idx + 1})'
+                prompt = (
+                    f'카테고리: {sub.get("english_title", sub.get("type", ""))}\n'
+                    f'정답: {correct_idx + 1}번 = {correct_text}\n\n'
+                    f'음성 원문(일본어):\n{script_text[:1500]}'
+                )
+                q['expl_ko'] = call(client, expl_sys, prompt, cache)
 
 def main():
     ap = argparse.ArgumentParser()

@@ -2,9 +2,60 @@ import { loadExam } from '../lib/data';
 import { sectionLabelKo } from '../lib/categories';
 import { escapeHtml } from '../lib/html';
 import { navigate } from '../router';
-import type { Question } from '../types';
+import { getListenProgress } from '../state';
+import type { Question, Listening } from '../types';
 
 interface Section { key: string; from: number; to: number; idx: number }
+
+const LISTENING_KO: Record<string, string> = {
+  'task-based-comprehension': '과제 이해',
+  'comprehension-of-key-points': '포인트 이해',
+  'comprehension-general-outline': '개요 이해',
+  'quick-response': '즉시 응답',
+  'listening-integrated-comprehension': '통합 이해',
+};
+
+function renderListeningCards(examId: string, listening: Listening | undefined): string {
+  if (!listening || examId.startsWith('cat:')) return '';
+  const total = listening.subsections.reduce((s, sub) => s + sub.questions.length, 0);
+  const prog = getListenProgress(examId);
+  const answeredTotal = listening.subsections
+    .flatMap((s) => s.questions)
+    .filter((q) => prog[q.id]).length;
+  const correctTotal = listening.subsections
+    .flatMap((s) => s.questions)
+    .filter((q) => prog[q.id]?.correct).length;
+  const accuracy = answeredTotal ? Math.round((correctTotal / answeredTotal) * 100) : 0;
+
+  const cards = listening.subsections.map((sub) => {
+    const ko = LISTENING_KO[sub.type] ?? sub.english_title;
+    const answered = sub.questions.filter((q) => prog[q.id]).length;
+    const meta = answered
+      ? `${answered}/${sub.questions.length}문제`
+      : `${sub.questions.length}문제`;
+    return `
+      <li class="sec sec-listen" data-m="${sub.order}" tabindex="0" role="button">
+        <span class="sec-number">問題${sub.order}</span>
+        <span class="sec-label">${escapeHtml(ko)}</span>
+        <span class="sec-meta">
+          <span>🔊 音声</span>
+          <span>${meta}</span>
+        </span>
+      </li>`;
+  }).join('');
+  const progressLine = answeredTotal
+    ? `<span class="listen-progress-meta">${answeredTotal}/${total} 완료 · 정답률 ${accuracy}%</span>`
+    : '';
+  return `
+    <section class="listen-section">
+      <div class="section-heading">
+        <p class="eyebrow">Listening</p>
+        <h2>聴解 · 청해 ${total}문제</h2>
+        ${progressLine}
+      </div>
+      <ul class="sections section-grid" id="listen-list">${cards}</ul>
+    </section>`;
+}
 
 function groupQuestions(qs: Question[], keyOf: (q: Question) => string): Section[] {
   const out: Section[] = [];
@@ -94,6 +145,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
           </div>
           <ul class="sections section-grid" id="sec-list">${sectionHTML}</ul>
         </section>
+        ${renderListeningCards(examId, exam.listening)}
       </main>
 
       <aside class="exam-action-bar" role="region" aria-label="시작 액션">
@@ -189,6 +241,27 @@ export async function renderExam(root: HTMLElement, examId: string) {
     const sections = list.map((s) => s.key);
     navigate({ name: 'wordlist', examId, sections });
   });
+
+  // Listening section: click → navigate to that mondai's listening page
+  const listenList = root.querySelector<HTMLElement>('#listen-list');
+  if (listenList) {
+    const go = (li: HTMLElement) => {
+      const m = Number(li.dataset.m);
+      if (!Number.isFinite(m)) return;
+      navigate({ name: 'listen', examId, m });
+    };
+    listenList.addEventListener('click', (e) => {
+      const li = (e.target as HTMLElement).closest<HTMLElement>('.sec-listen');
+      if (li) go(li);
+    });
+    listenList.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const li = (e.target as HTMLElement).closest<HTMLElement>('.sec-listen');
+      if (!li) return;
+      e.preventDefault();
+      go(li);
+    });
+  }
 
   // First paint
   update();

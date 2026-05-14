@@ -3,6 +3,7 @@ const KEY_LAST = 'jlpt:last';
 const KEY_SETTINGS = 'jlpt:settings';
 const KEY_WORDBOOK = 'jlpt:wordbook';
 const KEY_SRS = 'jlpt:srs';
+const KEY_LISTEN_PROGRESS = 'jlpt:listen-progress';
 
 export interface AnswerRec { picked: number; correct: boolean; ts: number }
 export type ExamProgress = Record<number, AnswerRec>;
@@ -157,4 +158,20 @@ export function clearSrsFor(words: string[]) {
   const all = getAllSrs();
   for (const w of words) delete all[w];
   write(KEY_SRS, all);
+}
+
+// ─── Listening progress ─────────────────────────────────────────────────
+/** Listening progress keyed by exam id + nihonez question id (string). */
+export type ListenExamProgress = Record<string, AnswerRec>;
+export type AllListenProgress = Record<string, ListenExamProgress>;
+
+export function recordListenAnswer(examId: string, questionId: string, picked: number, correct: boolean) {
+  const all = read<AllListenProgress>(KEY_LISTEN_PROGRESS, {});
+  if (!all[examId]) all[examId] = {};
+  all[examId][questionId] = { picked, correct, ts: Date.now() };
+  write(KEY_LISTEN_PROGRESS, all);
+}
+
+export function getListenProgress(examId: string): ListenExamProgress {
+  return read<AllListenProgress>(KEY_LISTEN_PROGRESS, {})[examId] ?? {};
 }

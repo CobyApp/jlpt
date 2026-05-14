@@ -2,6 +2,7 @@ import { onRouteChange } from './router';
 import { renderHome } from './views/home';
 import { renderExam } from './views/exam';
 import { renderQuestion } from './views/question';
+import { renderListening } from './views/listening';
 import { renderWordbook } from './views/wordbook';
 import { renderWordlist } from './views/wordlist';
 import { escapeHtml } from './lib/html';
@@ -15,6 +16,7 @@ onRouteChange(async (route) => {
     else if (route.name === 'exam') await renderExam(root, route.examId);
     else if (route.name === 'wordlist') await renderWordlist(root, route.examId, { sections: route.sections, from: route.from, to: route.to });
     else if (route.name === 'question') await renderQuestion(root, route.examId, route.n, route.from, route.to);
+    else if (route.name === 'listen') await renderListening(root, route.examId, route.m);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     root.innerHTML = `

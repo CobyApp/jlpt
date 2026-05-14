@@ -3,7 +3,8 @@ export type Route =
   | { name: 'wordbook' }
   | { name: 'exam'; examId: string }
   | { name: 'wordlist'; examId: string; sections?: string[]; from?: number; to?: number }
-  | { name: 'question'; examId: string; n: number; from?: number; to?: number };
+  | { name: 'question'; examId: string; n: number; from?: number; to?: number }
+  | { name: 'listen'; examId: string; m: number };
 
 export function parseRoute(hash: string): Route {
   const m = hash.replace(/^#?\/?/, '');
@@ -13,6 +14,11 @@ export function parseRoute(hash: string): Route {
   const parts = path.split('/');
   if (parts[0] === 'wordbook') return { name: 'wordbook' };
   if (parts[0] === 'exam' && parts[1]) {
+    if (parts[2] === 'listen' && parts[3]) {
+      const m = Number(parts[3]);
+      if (!Number.isFinite(m) || m < 1 || m > 5) return { name: 'home' };
+      return { name: 'listen', examId: parts[1], m };
+    }
     if (parts[2] === 'q' && parts[3]) {
       const n = Number(parts[3]);
       if (!Number.isFinite(n)) return { name: 'home' };
@@ -76,6 +82,9 @@ export function navigate(route: Route) {
     if (route.from != null) params.push(`from=${route.from}`);
     if (route.to != null) params.push(`to=${route.to}`);
     if (params.length) hash += `?${params.join('&')}`;
+  }
+  else if (route.name === 'listen') {
+    hash = `#/exam/${route.examId}/listen/${route.m}`;
   }
   location.hash = hash;
 }

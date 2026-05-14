@@ -12,3 +12,4 @@ scripts/.translate-cache.json
 scripts/.vocab-candidates.json
 scripts/.batches/
 __pycache__/
+data/n1_corpus/audio/

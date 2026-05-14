@@ -777,6 +777,230 @@ button, input { font: inherit; }
   gap: 6px;
 }
 
+/* ──── Listening section on exam start screen ──── */
+.listen-section {
+  margin-top: 28px;
+}
+
+.listen-progress-meta {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.sec-listen {
+  border-color: rgba(59, 130, 246, 0.2);
+  background: linear-gradient(180deg, #f8fbff, #eef4ff);
+}
+
+.sec-listen:hover {
+  border-color: rgba(37, 99, 235, 0.36);
+  background: linear-gradient(180deg, #eef4ff, #dbe7ff);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.16);
+}
+
+.sec-listen .sec-number {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+/* ──── Listening study view ──── */
+.listen-shell .qhdr-cat {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.listen-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.l-subnav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.l-subnav-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--t-fast) ease, color var(--t-fast) ease, border-color var(--t-fast) ease;
+}
+
+.l-subnav-chip:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #1d4ed8;
+}
+
+.l-subnav-chip.is-active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.listen-intro-card {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafafa;
+  line-height: 1.7;
+}
+
+.listen-intro-card .ja {
+  font-size: 14px;
+  color: #444;
+}
+
+.listen-audio-card {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
+}
+
+.listen-audio-card audio {
+  width: 100%;
+}
+
+.listen-audio-card .audio-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.listen-questions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.listen-q {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.listen-q-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.listen-q-num {
+  font-weight: 700;
+  font-size: 16px;
+  color: #1d4ed8;
+}
+
+.listen-q-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.listen-reveal {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafafa;
+  padding: 8px 12px;
+}
+
+.listen-reveal[open] {
+  background: #fff;
+}
+
+.listen-reveal > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: #555;
+  list-style: none;
+  padding: 4px 0;
+}
+
+.listen-reveal > summary::-webkit-details-marker {
+  display: none;
+}
+
+.listen-reveal > summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform var(--t-fast) ease;
+}
+
+.listen-reveal[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.listen-script {
+  margin-top: 8px;
+  line-height: 1.9;
+  font-size: 15px;
+  color: #222;
+}
+
+.listen-script .jlpt-passages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.listen-translation,
+.listen-expl {
+  margin-top: 8px;
+  line-height: 1.7;
+  font-size: 14px;
+  color: #333;
+}
+
+.listen-nav {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.listen-nav button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.listen-nav button:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #1d4ed8;
+}
+
 .section-heading .ghost-link {
   margin-left: auto;
   padding: 6px 12px;
