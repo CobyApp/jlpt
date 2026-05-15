@@ -1126,6 +1126,120 @@ button, input { font: inherit; }
   color: #1d4ed8;
 }
 
+/* ──── Listening view: 강조 색을 통째로 파란 톤으로 ──── */
+.listen-shell #toggle-furigana {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.24);
+  color: #1d4ed8;
+}
+
+.listen-shell #toggle-furigana:hover {
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.42);
+}
+
+.listen-shell .opt {
+  transition: background var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+
+.listen-shell .opt:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: #f4f8ff;
+}
+
+.listen-shell .opt.opt-selected {
+  background: linear-gradient(180deg, #eaf1ff, #d6e4ff);
+  border-color: #1d4ed8;
+  color: #0e2e84;
+}
+
+.listen-shell .opt .opt-num {
+  color: #1d4ed8;
+}
+
+.listen-shell .submit.primary,
+.listen-shell button.primary {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+}
+
+.listen-shell .submit.primary:hover:not(:disabled),
+.listen-shell button.primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.listen-shell .submit.primary:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+
+.listen-shell .listen-reveal > summary {
+  color: #1e3a8a;
+}
+
+.listen-shell .listen-reveal[open] > summary {
+  color: #1d4ed8;
+}
+
+.listen-shell .listen-q-num,
+.listen-shell .qhdr-pos,
+.listen-shell .qhdr-src {
+  color: #1d4ed8;
+}
+
+/* Listening-area ghost-link buttons (그룹 선택 inside listen-section) follow the blue tone too. */
+.listen-section .ghost-link:hover:not(:disabled) {
+  background: #eef4ff;
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #1d4ed8;
+}
+
+/* Listening group label in 영역별 모아풀기 */
+.cat-group-block:has(.cat-card-listen) .cat-group-label {
+  color: #1d4ed8;
+}
+
+/* Wordlist tab active state for listening tabs */
+.wl-tabs .tab[data-section^="listen:"].is-active,
+.wl-tabs .tab[data-section^="listen-"].is-active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+/* Listening category drill hero (cat:listen-X) — kicker + title in blue */
+.hero-listen .hero-kicker {
+  color: #1d4ed8;
+}
+
+.hero-listen h1 {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Per-exam cards inside a listening drill keep the blue tone too. */
+.exam-card-listen {
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.exam-card-listen:hover {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.14);
+}
+
+.exam-card-listen .card-badge {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.exam-card-listen .progress-track span {
+  background: linear-gradient(90deg, #60a5fa, #1d4ed8);
+}
+
 /* Base pill-style ghost link — used in section/group toolbars */
 .ghost-link {
   padding: 6px 12px;

@@ -119,7 +119,7 @@ async function renderListeningCategory(root: HTMLElement, slug: string) {
 
   root.innerHTML = `
     <div class="app-shell">
-      <header class="hero exam-hero">
+      <header class="hero exam-hero hero-listen">
         <a href="#/" class="back">홈으로</a>
         <p class="hero-kicker">Listening Drill</p>
         <h1>${escapeHtml(categoryName)}</h1>
@@ -129,6 +129,9 @@ async function renderListeningCategory(root: HTMLElement, slug: string) {
         <div class="cards">${cards}</div>
       </main>
     </div>`;
+
+  // Also tint the per-exam cards in this drill blue.
+  root.querySelectorAll<HTMLElement>('.exam-card').forEach((c) => c.classList.add('exam-card-listen'));
 }
 
 function groupQuestions(qs: Question[], keyOf: (q: Question) => string): Section[] {
