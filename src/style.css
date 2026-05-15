@@ -778,7 +778,7 @@ button, input { font: inherit; }
 }
 
 .hero-hint {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -786,23 +786,31 @@ button, input { font: inherit; }
 .hero-actions {
   display: flex;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 16px;
   flex-wrap: wrap;
 }
 
 .hero-actions .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 18px;
-  border-radius: 12px;
-  border: 0;
-  background: linear-gradient(180deg, var(--accent), #be185d);
-  color: #fff;
+  border-radius: 999px;
+  border: 1px solid rgba(190, 24, 93, 0.18);
+  background: #fff;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(190, 24, 93, 0.24);
+  box-shadow: 0 6px 16px rgba(190, 24, 93, 0.08);
+  transition: background var(--t-fast) ease, border-color var(--t-fast) ease, transform var(--t-fast) ease;
 }
 
 .hero-actions .primary:hover {
-  filter: brightness(1.05);
+  background: #fff5fa;
+  border-color: rgba(190, 24, 93, 0.36);
+  transform: translateY(-1px);
 }
 
 /* ──── Section groups on exam start screen (어휘/문법/독해/청해) ──── */
@@ -1082,8 +1090,8 @@ button, input { font: inherit; }
   color: #1d4ed8;
 }
 
-.section-heading .ghost-link {
-  margin-left: auto;
+/* Base pill-style ghost link — used in section/group toolbars */
+.ghost-link {
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1096,19 +1104,23 @@ button, input { font: inherit; }
   transition: background var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
 }
 
-.section-heading-actions .ghost-link {
-  margin-left: 0;
-}
-
-.section-heading .ghost-link:hover:not(:disabled) {
+.ghost-link:hover:not(:disabled) {
   background: #fff5fa;
   border-color: rgba(190, 24, 93, 0.32);
   color: var(--accent-strong);
 }
 
-.section-heading .ghost-link:disabled {
+.ghost-link:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.section-heading .ghost-link {
+  margin-left: auto;
+}
+
+.section-heading-actions .ghost-link {
+  margin-left: 0;
 }
 
 .range-pick button.ghost {
