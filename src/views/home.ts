@@ -1,6 +1,6 @@
 import { loadIndex } from '../lib/data';
 import { escapeHtml } from '../lib/html';
-import { getProgress, getLast, getWordbook } from '../state';
+import { getProgress, getLast, getWordbook, getListenProgress } from '../state';
 import { ALL_CATEGORIES, categoryKo } from '../lib/categories';
 
 type HomeTab = 'exams' | 'cats';
@@ -20,9 +20,13 @@ export async function renderHome(root: HTMLElement) {
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
   const idx = await loadIndex();
   const last = getLast();
-  const totalQuestions = idx.exams.reduce((sum, e) => sum + e.questions, 0);
+  // Total = 어휘+문법+독해 + 청해 (둘 다 카운트)
+  const totalQuestions = idx.exams.reduce(
+    (sum, e) => sum + e.questions + (e.listening_questions ?? 0),
+    0,
+  );
   const answeredTotal = idx.exams.reduce(
-    (sum, e) => sum + Object.keys(getProgress(e.id)).length,
+    (sum, e) => sum + Object.keys(getProgress(e.id)).length + Object.keys(getListenProgress(e.id)).length,
     0,
   );
   const overallProgress = totalQuestions
@@ -30,23 +34,31 @@ export async function renderHome(root: HTMLElement) {
     : 0;
 
   const examCards = idx.exams.map((e) => {
+    const lq = e.listening_questions ?? 0;
+    const totalQ = e.questions + lq;
     const prog = getProgress(e.id);
-    const answered = Object.keys(prog).length;
-    const correct = Object.values(prog).filter((p) => p.correct).length;
-    const progress = e.questions ? Math.round((answered / e.questions) * 100) : 0;
+    const lProg = getListenProgress(e.id);
+    const answeredRead = Object.keys(prog).length;
+    const answeredListen = Object.keys(lProg).length;
+    const answered = answeredRead + answeredListen;
+    const correctRead = Object.values(prog).filter((p) => p.correct).length;
+    const correctListen = Object.values(lProg).filter((p) => p.correct).length;
+    const correct = correctRead + correctListen;
+    const progress = totalQ ? Math.round((answered / totalQ) * 100) : 0;
     const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
+    const listenMeta = lq ? ` + 청해 ${lq}` : '';
     return `
       <a class="card exam-card" href="#/exam/${e.id}">
         <div class="card-topline">
           <span class="card-badge">Mock Test</span>
-          <span class="card-meta">${e.questions}문제 · ${e.passages}지문</span>
+          <span class="card-meta">총 ${totalQ}문제 (${e.questions}${listenMeta}) · ${e.passages}지문</span>
         </div>
         <div class="card-title">${escapeHtml(e.title)}</div>
         <div class="progress-track" role="progressbar" aria-label="${escapeHtml(e.title)} 학습 진도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
           <span style="width: ${progress}%"></span>
         </div>
         <div class="card-foot">
-          <span>${answered}/${e.questions} 완료</span>
+          <span>${answered}/${totalQ} 완료</span>
           <span>정답률 ${accuracy}%</span>
         </div>
       </a>`;

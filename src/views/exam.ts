@@ -1,11 +1,21 @@
 import { loadExam, loadIndex } from '../lib/data';
-import { sectionLabelKo, LISTENING_SLUGS, listeningTypeFromSlug, categoryKo } from '../lib/categories';
+import { sectionLabelKo, LISTENING_SLUGS, listeningTypeFromSlug, categoryKo, ALL_CATEGORIES } from '../lib/categories';
 import { escapeHtml } from '../lib/html';
 import { navigate } from '../router';
 import { getListenProgress } from '../state';
 import type { Question, Listening, Exam } from '../types';
 
 interface Section { key: string; from: number; to: number; idx: number }
+
+const CATEGORY_GROUP_MAP: Record<string, '어휘' | '문법' | '독해'> = (() => {
+  const m: Record<string, '어휘' | '문법' | '독해'> = {} as any;
+  for (const c of ALL_CATEGORIES) {
+    if (c.group === '어휘' || c.group === '문법' || c.group === '독해') {
+      m[c.category] = c.group;
+    }
+  }
+  return m;
+})();
 
 const LISTENING_KO: Record<string, string> = {
   'task-based-comprehension': '과제 이해',
@@ -44,14 +54,15 @@ function renderListeningCards(examId: string, listening: Listening | undefined):
       </li>`;
   }).join('');
   const progressLine = answeredTotal
-    ? `<span class="listen-progress-meta">${answeredTotal}/${total} 완료 · 정답률 ${accuracy}%</span>`
-    : '';
+    ? `<span class="sec-group-meta">${answeredTotal}/${total} 완료 · 정답률 ${accuracy}%</span>`
+    : `<span class="sec-group-meta">${listening.subsections.length}영역 · ${total}문제</span>`;
   return `
-    <section class="listen-section">
-      <div class="section-heading">
-        <p class="eyebrow">Listening</p>
-        <h2>聴解 · 청해 ${total}문제</h2>
+    <section class="sec-group listen-section" data-group="청해">
+      <div class="sec-group-head">
+        <span class="sec-group-eyebrow">聴解</span>
+        <h3 class="sec-group-title">청해</h3>
         ${progressLine}
+        <button class="ghost-link sec-group-toggle" type="button" data-group="청해">그룹 선택</button>
       </div>
       <ul class="sections section-grid" id="listen-list">${cards}</ul>
     </section>`;
@@ -207,7 +218,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
     };
   };
 
-  const sectionHTML = sections.map((s) => `
+  const renderSectionLi = (s: Section) => `
     <li class="sec" data-key="${escapeHtml(s.key)}" tabindex="0" role="button" aria-pressed="false">
       <span class="sec-number">${escapeHtml(numberOf(s))}</span>
       <span class="sec-label">${escapeHtml(labelOf(s))}</span>
@@ -215,7 +226,54 @@ export async function renderExam(root: HTMLElement, examId: string) {
         <span>${s.from}–${s.to}</span>
         <span>${s.to - s.from + 1}문제</span>
       </span>
-    </li>`).join('');
+    </li>`;
+
+  // Sections grouped by 어휘/문법/독해 for regular exams (not cat drills).
+  type GroupName = '어휘' | '문법' | '독해' | '기타';
+  const groupOf = (s: Section): GroupName => {
+    if (isCategoryDrill) return '기타';
+    return CATEGORY_GROUP_MAP[s.key] ?? '기타';
+  };
+  const groupsOrdered: GroupName[] = ['어휘', '문법', '독해', '기타'];
+  const sectionsByGroup = new Map<GroupName, Section[]>();
+  for (const s of sections) {
+    const g = groupOf(s);
+    if (!sectionsByGroup.has(g)) sectionsByGroup.set(g, []);
+    sectionsByGroup.get(g)!.push(s);
+  }
+
+  const groupHTML = (gname: GroupName, list: Section[], gIdx: number): string => {
+    const totalQ = list.reduce((sum, s) => sum + (s.to - s.from + 1), 0);
+    const heading = gname === '기타' ? (isCategoryDrill ? '회차' : groupHeading) : gname;
+    const sub = gname === '기타' ? '' : `<span class="sec-group-meta">${list.length}영역 · ${totalQ}문제</span>`;
+    return `
+      <section class="sec-group" data-group="${gname}">
+        <div class="sec-group-head">
+          <span class="sec-group-eyebrow">${gIdx === 0 ? (isCategoryDrill ? 'Mock Tests' : '言語知識・読解') : ''}</span>
+          <h3 class="sec-group-title">${escapeHtml(heading)}</h3>
+          ${sub}
+          <button class="ghost-link sec-group-toggle" type="button" data-group="${gname}">그룹 선택</button>
+        </div>
+        <ul class="sections section-grid">${list.map(renderSectionLi).join('')}</ul>
+      </section>`;
+  };
+
+  const sectionHTML = isCategoryDrill
+    ? `<section class="sec-group" data-group="기타"><ul class="sections section-grid">${sections.map(renderSectionLi).join('')}</ul></section>`
+    : groupsOrdered
+        .filter((g) => sectionsByGroup.has(g))
+        .map((g, i) => groupHTML(g, sectionsByGroup.get(g)!, i))
+        .join('');
+
+  const listenQs = exam.listening
+    ? exam.listening.subsections.reduce((s, sub) => s + sub.questions.length, 0)
+    : 0;
+  const heroTotalLine = isCategoryDrill
+    ? `${exam.questions.length}문제 · ${Object.keys(exam.passages).length}지문`
+    : `총 ${exam.questions.length + listenQs}문제 (어휘·문법·독해 ${exam.questions.length}${listenQs ? ` + 청해 ${listenQs}` : ''}) · ${Object.keys(exam.passages).length}지문`;
+  const heroHint = isCategoryDrill
+    ? '풀고 싶은 회차를 선택하세요. (복수 선택 가능)'
+    : '풀고 싶은 영역을 선택하거나, 전체 시작으로 첫 문제부터 풀어보세요.';
 
   // ── One-time skeleton render ──
   root.innerHTML = `
@@ -224,21 +282,20 @@ export async function renderExam(root: HTMLElement, examId: string) {
         <a href="#/" class="back">${isCategoryDrill ? '홈으로' : '회차 목록으로'}</a>
         <p class="hero-kicker">${isCategoryDrill ? 'Category Drill' : 'Exam Overview'}</p>
         <h1>${escapeHtml(exam.title)}</h1>
-        <p class="hero-copy">${exam.questions.length}문제 · ${Object.keys(exam.passages).length}지문 · 풀고 싶은 ${isCategoryDrill ? '회차' : '영역'}를 선택하세요. (복수 선택 가능)</p>
+        <p class="hero-copy">${heroTotalLine}</p>
+        <p class="hero-hint">${heroHint}</p>
+        ${!isCategoryDrill ? `
+          <div class="hero-actions">
+            <button id="go-full" class="primary" type="button">▶ 전체 시작 (1번 문제부터)</button>
+          </div>` : ''}
       </header>
 
       <main class="exam-main panel">
-        <section>
-          <div class="section-heading">
-            <p class="eyebrow">${isCategoryDrill ? 'Mock Tests' : 'Section'}</p>
-            <h2>${groupHeading}</h2>
-            <div class="section-heading-actions">
-              <button id="reset-all" class="ghost-link" type="button" disabled>선택 해제</button>
-              <button id="select-all" class="ghost-link" type="button">전체 선택</button>
-            </div>
-          </div>
-          <ul class="sections section-grid" id="sec-list">${sectionHTML}</ul>
-        </section>
+        <div class="exam-toolbar">
+          <button id="reset-all" class="ghost-link" type="button" disabled>선택 해제</button>
+          <button id="select-all" class="ghost-link" type="button">전체 선택</button>
+        </div>
+        <div id="sec-list">${sectionHTML}</div>
         ${renderListeningCards(examId, exam.listening)}
       </main>
 
@@ -331,6 +388,25 @@ export async function renderExam(root: HTMLElement, examId: string) {
     update();
   });
 
+  // Group toggle buttons — select / deselect every card in the same .sec-group.
+  root.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.sec-group-toggle') as HTMLButtonElement | null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const group = btn.closest('.sec-group');
+    if (!group) return;
+    const cards = group.querySelectorAll<HTMLLIElement>('.sec, .sec-listen');
+    const keys = Array.from(cards).map((c) => c.dataset.key!).filter(Boolean);
+    const allSelected = keys.length > 0 && keys.every((k) => selected.has(k));
+    if (allSelected) {
+      for (const k of keys) selected.delete(k);
+    } else {
+      for (const k of keys) selected.add(k);
+    }
+    update();
+  });
+
   startBtn.addEventListener('click', () => {
     const list = orderedSelected();
     const lOrders = selectedListenOrders();
@@ -379,6 +455,12 @@ export async function renderExam(root: HTMLElement, examId: string) {
       toggleListen(li);
     });
   }
+
+  // "전체 시작" 버튼 — 어휘 1번부터 시작. 청해는 끝 부분에서 별도 진입.
+  const fullBtn = root.querySelector<HTMLButtonElement>('#go-full');
+  fullBtn?.addEventListener('click', () => {
+    navigate({ name: 'question', examId, n: 1 });
+  });
 
   // First paint
   update();

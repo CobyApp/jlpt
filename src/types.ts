@@ -5,6 +5,8 @@ export interface IndexEntry {
   questions: number;
   passages: number;
   source: string;
+  listening_questions?: number;
+  listening_subsections?: number;
 }
 
 export interface IndexFile {

@@ -74,3 +74,23 @@ if (existsSync(jaExams) && existsSync(dstExams) && src !== SRC_JA) {
   }
   if (overlaid) console.log(`[sync-data] overlaid listening into ${overlaid} exam(s) from JA corpus (KO translations preserved)`);
 }
+
+// Enrich public/data/index.json with listening question counts so the home page can
+// show the full per-exam totals (reading + listening) without loading every exam.
+const idxPath = resolve(dst, 'index.json');
+if (existsSync(idxPath) && existsSync(dstExams)) {
+  const idx = JSON.parse(readFileSync(idxPath, 'utf8'));
+  for (const entry of idx.exams) {
+    const examFile = resolve(dst, entry.file);
+    if (!existsSync(examFile)) continue;
+    const ex = JSON.parse(readFileSync(examFile, 'utf8'));
+    const L = ex.listening;
+    if (!L?.subsections) continue;
+    const subsections = L.subsections.length;
+    const listening_questions = L.subsections.reduce((s, sub) => s + (sub.questions?.length || 0), 0);
+    entry.listening_subsections = subsections;
+    entry.listening_questions = listening_questions;
+  }
+  writeFileSync(idxPath, JSON.stringify(idx, null, 2), 'utf8');
+  console.log('[sync-data] enriched index.json with listening counts');
+}
