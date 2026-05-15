@@ -88,7 +88,7 @@ export async function renderListening(root: HTMLElement, examId: string, m: numb
     restoreAnswered(root, q, rec.picked, idx);
   }
 
-  wireListeners(root, exam.test_id, sub, prevM, nextM, signal, saved, idx, vocab);
+  wireListeners(root, exam.test_id, sub, prevM, nextM, signal, saved, idx, vocab, exam.questions.length);
 }
 
 function restoreAnswered(root: HTMLElement, q: ListeningQuestion, picked: number, idx: VocabIdx) {
@@ -156,8 +156,12 @@ function renderShell(
         <ol class="listen-questions">${questions}</ol>
 
         <nav class="qnav listen-nav">
-          ${prevM ? `<button id="prev-m" type="button">← 問題${prevM}</button>` : '<span></span>'}
-          ${nextM ? `<button id="next-m" type="button">問題${nextM} →</button>` : '<span></span>'}
+          ${prevM
+            ? `<button id="prev-m" type="button">← 問題${prevM}</button>`
+            : `<button id="back-to-reading" type="button">← 독해로</button>`}
+          ${nextM
+            ? `<button id="next-m" type="button">問題${nextM} →</button>`
+            : `<button id="finish-exam" type="button">완료 · 회차로</button>`}
         </nav>
       </main>
     </div>
@@ -238,6 +242,7 @@ function wireListeners(
   saved: Record<string, { picked: number; correct: boolean; ts: number }>,
   idx: VocabIdx,
   vocab: VocabEntry[],
+  readingTotal: number,
 ) {
   const qmap = new Map(sub.questions.map((q) => [q.id, q]));
   const vocabMap = new Map(vocab.map((v) => [v.w, v]));
@@ -257,6 +262,15 @@ function wireListeners(
   }, { signal });
   root.querySelector<HTMLButtonElement>('#next-m')?.addEventListener('click', () => {
     if (nextM) navigate({ name: 'listen', examId, m: nextM });
+  }, { signal });
+  // Listening m=1 prev → last reading question (so 전체 시작 flow is reversible)
+  root.querySelector<HTMLButtonElement>('#back-to-reading')?.addEventListener('click', () => {
+    if (readingTotal > 0) navigate({ name: 'question', examId, n: readingTotal });
+    else navigate({ name: 'exam', examId });
+  }, { signal });
+  // Listening m=last next → back to exam-start screen (complete)
+  root.querySelector<HTMLButtonElement>('#finish-exam')?.addEventListener('click', () => {
+    navigate({ name: 'exam', examId });
   }, { signal });
 
   // Furigana toggle: in-place patch script/intro/opts (and any open feedbacks)

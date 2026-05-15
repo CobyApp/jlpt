@@ -60,7 +60,7 @@ export async function renderQuestion(
           <div class="feedback" id="feedback"></div>
           <nav class="qnav">
             <button id="prev" ${n <= min ? 'disabled' : ''}>이전</button>
-            <button id="next" ${n >= max ? 'disabled' : ''}>다음</button>
+            <button id="next">${n >= max && exam.listening ? '청해 →' : '다음'}</button>
           </nav>
         </section>
       </main>
@@ -70,7 +70,12 @@ export async function renderQuestion(
     if (n > min) navigate({ name: 'question', examId, n: n - 1, from, to });
   }, { signal });
   root.querySelector<HTMLButtonElement>('#next')!.addEventListener('click', () => {
-    if (n < max) navigate({ name: 'question', examId, n: n + 1, from, to });
+    if (n < max) {
+      navigate({ name: 'question', examId, n: n + 1, from, to });
+    } else if (exam.listening) {
+      // Reading finished → roll into listening section.
+      navigate({ name: 'listen', examId, m: 1 });
+    }
   }, { signal });
 
   // Furigana toggle: refresh JA text in place (no full re-render)
@@ -128,8 +133,9 @@ export async function renderQuestion(
       submit();
     } else if (e.key === 'ArrowLeft' && n > min) {
       navigate({ name: 'question', examId, n: n - 1, from, to });
-    } else if (e.key === 'ArrowRight' && n < max) {
-      navigate({ name: 'question', examId, n: n + 1, from, to });
+    } else if (e.key === 'ArrowRight') {
+      if (n < max) navigate({ name: 'question', examId, n: n + 1, from, to });
+      else if (exam.listening) navigate({ name: 'listen', examId, m: 1 });
     }
   };
   document.addEventListener('keydown', keyHandler, { signal });

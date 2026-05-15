@@ -15,6 +15,7 @@ export interface IndexFile {
   vocab: { file: string; count: number; source: string };
   kanji_n1: { file: string; count: number; source: string };
   kanji_all: { file: string; count: number; source: string };
+  category_totals?: Record<string, number>;
 }
 
 export interface Passage { ja: string; en: string; ko?: string }

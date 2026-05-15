@@ -59,7 +59,6 @@ function renderListeningCards(examId: string, listening: Listening | undefined):
   return `
     <section class="sec-group listen-section" data-group="청해">
       <div class="sec-group-head">
-        <span class="sec-group-eyebrow">聴解</span>
         <h3 class="sec-group-title">청해</h3>
         ${progressLine}
         <button class="ghost-link sec-group-toggle" type="button" data-group="청해">그룹 선택</button>
@@ -182,13 +181,18 @@ export async function renderExam(root: HTMLElement, examId: string) {
       .map((sub) => sub.order);
   };
 
+  const totalListenQs = exam.listening
+    ? exam.listening.subsections.reduce((s, sub) => s + sub.questions.length, 0)
+    : 0;
+  const totalAllQs = max + totalListenQs;
+
   const summary = () => {
     const list = orderedSelected();
     const lOrders = selectedListenOrders();
     const groupNoun = isCategoryDrill ? '회차' : '영역';
     const total = list.length + lOrders.length;
     if (total === 0) {
-      return { label: `${groupNoun}을 선택하세요`, range: `총 ${max}문제`, count: 0, hasSelection: false };
+      return { label: `${groupNoun}을 선택하세요`, range: `총 ${totalAllQs}문제`, count: 0, hasSelection: false };
     }
     const readingQs = list.reduce((sum, s) => sum + (s.to - s.from + 1), 0);
     const listenQs = lOrders.reduce((sum, m) => {
@@ -242,14 +246,13 @@ export async function renderExam(root: HTMLElement, examId: string) {
     sectionsByGroup.get(g)!.push(s);
   }
 
-  const groupHTML = (gname: GroupName, list: Section[], gIdx: number): string => {
+  const groupHTML = (gname: GroupName, list: Section[]): string => {
     const totalQ = list.reduce((sum, s) => sum + (s.to - s.from + 1), 0);
     const heading = gname === '기타' ? (isCategoryDrill ? '회차' : groupHeading) : gname;
     const sub = gname === '기타' ? '' : `<span class="sec-group-meta">${list.length}영역 · ${totalQ}문제</span>`;
     return `
       <section class="sec-group" data-group="${gname}">
         <div class="sec-group-head">
-          <span class="sec-group-eyebrow">${gIdx === 0 ? (isCategoryDrill ? 'Mock Tests' : '言語知識・読解') : ''}</span>
           <h3 class="sec-group-title">${escapeHtml(heading)}</h3>
           ${sub}
           <button class="ghost-link sec-group-toggle" type="button" data-group="${gname}">그룹 선택</button>
@@ -262,7 +265,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
     ? `<section class="sec-group" data-group="기타"><ul class="sections section-grid">${sections.map(renderSectionLi).join('')}</ul></section>`
     : groupsOrdered
         .filter((g) => sectionsByGroup.has(g))
-        .map((g, i) => groupHTML(g, sectionsByGroup.get(g)!, i))
+        .map((g) => groupHTML(g, sectionsByGroup.get(g)!))
         .join('');
 
   const listenQs = exam.listening
@@ -303,7 +306,7 @@ export async function renderExam(root: HTMLElement, examId: string) {
         <div class="action-summary">
           <span class="action-summary-eyebrow">선택</span>
           <strong class="action-summary-label" id="sum-label">영역을 선택하세요</strong>
-          <span class="action-summary-range" id="sum-range">총 ${max}문제</span>
+          <span class="action-summary-range" id="sum-range">총 ${totalAllQs}문제</span>
         </div>
         <div class="action-buttons">
           <button id="go-words" type="button" class="ghost" disabled>📖 단어 미리보기</button>

@@ -577,6 +577,35 @@ button, input { font: inherit; }
   font-weight: 600;
 }
 
+.cat-card .cat-progress {
+  margin-top: 10px;
+  height: 5px;
+}
+
+.cat-card-listen {
+  background: linear-gradient(180deg, #f8fbff, #eef4ff);
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.cat-card-listen:hover {
+  border-color: rgba(37, 99, 235, 0.36);
+}
+
+.cat-card-listen .cat-group {
+  color: #1d4ed8;
+}
+
+.home-reset {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.home-reset:hover {
+  border-color: rgba(190, 24, 93, 0.32);
+  color: var(--accent-strong);
+}
+
 .card {
   display: block;
   color: inherit;

@@ -175,3 +175,28 @@ export function recordListenAnswer(examId: string, questionId: string, picked: n
 export function getListenProgress(examId: string): ListenExamProgress {
   return read<AllListenProgress>(KEY_LISTEN_PROGRESS, {})[examId] ?? {};
 }
+
+// ─── Reset helpers ─────────────────────────────────────────────────────
+/** Reset reading + listening progress for one exam (단어장·SRS·설정 유지). */
+export function clearExamProgress(examId: string) {
+  const r = read<AllProgress>(KEY_PROGRESS, {});
+  delete r[examId];
+  write(KEY_PROGRESS, r);
+  const l = read<AllListenProgress>(KEY_LISTEN_PROGRESS, {});
+  delete l[examId];
+  write(KEY_LISTEN_PROGRESS, l);
+}
+
+/** Reset all reading + listening progress (단어장·SRS·설정 유지). */
+export function clearAllProgress() {
+  write(KEY_PROGRESS, {});
+  write(KEY_LISTEN_PROGRESS, {});
+  try { localStorage.removeItem(KEY_LAST); } catch { /* ignore */ }
+}
+
+/** 단어장도 함께 비우기. */
+export function clearEverything() {
+  clearAllProgress();
+  write(KEY_WORDBOOK, []);
+  write(KEY_SRS, {});
+}

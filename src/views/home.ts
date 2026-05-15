@@ -1,7 +1,7 @@
 import { loadIndex } from '../lib/data';
 import { escapeHtml } from '../lib/html';
-import { getProgress, getLast, getWordbook, getListenProgress } from '../state';
-import { ALL_CATEGORIES, categoryKo } from '../lib/categories';
+import { getProgress, getLast, getWordbook, getListenProgress, clearAllProgress } from '../state';
+import { ALL_CATEGORIES, LISTENING_SLUGS, listeningTypeFromSlug, categoryKo } from '../lib/categories';
 
 type HomeTab = 'exams' | 'cats';
 
@@ -79,21 +79,51 @@ export async function renderHome(root: HTMLElement) {
       <span class="wb-pill-count">${wordbookCount}</span>
     </a>`;
 
+  const resetPill = `<button class="wb-pill home-reset" id="reset-btn" type="button" title="진도 초기화">
+      <span class="wb-pill-icon">↻</span>
+      <span class="wb-pill-label">초기화</span>
+    </button>`;
+
   const categoriesByGroup = ALL_CATEGORIES.reduce<Record<string, typeof ALL_CATEGORIES>>((acc, c) => {
     (acc[c.group] ||= []).push(c);
     return acc;
   }, {});
 
+  // Aggregate answered counts per category (reading + listening) across all exams.
+  const readingAnsweredByCategory = new Map<string, number>(); // category name → answered count
+  const listeningAnsweredByType = new Map<string, number>(); // mondai type → answered count
+  // For reading: iterate per-exam progress + match question.n→category requires loading exams.
+  // Cheaper approximation: skip per-exam mapping. We just count total answered for cat: drill
+  // by reading from jlpt:progress key 'cat:<slug>'. For accurate per-category aggregation
+  // (across all exams) we'd need exam questions; we fall back to local cat: progress.
+  // Listening: 각 listening type별 = 모든 exam의 listening-progress 중 그 type만. listening-progress는
+  // question id 키만 가지므로 type 매핑이 어렵다. 회차별로 합산은 단순화.
+
+  const catTotals = idx.category_totals ?? {};
+
   const catSection = Object.entries(categoriesByGroup).map(([group, cats]) => {
     const cards = cats.map((c) => {
       const examId = `cat:${c.slug}`;
+      const isListen = LISTENING_SLUGS.has(c.slug);
+      const total = catTotals[c.category] ?? 0;
+      // Cat-drill progress: stored under examId `cat:<slug>` for reading drills.
+      // For listening drills we don't track separately yet (would need to join
+      // exam listening_progress by mondai type). Fall back to cat: bucket only.
       const prog = getProgress(examId);
       const answered = Object.keys(prog).length;
+      const pct = total ? Math.round((answered / total) * 100) : 0;
+      const metaLine = total
+        ? `${total}문제${answered ? ` · ${answered} 풀었음 (${pct}%)` : ''}`
+        : '아직 학습 전';
+      const progressBar = total
+        ? `<div class="progress-track cat-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>`
+        : '';
       return `
-        <a class="card cat-card" href="#/exam/${examId}">
+        <a class="card cat-card ${isListen ? 'cat-card-listen' : ''}" href="#/exam/${examId}">
           <span class="cat-group">${escapeHtml(group)}</span>
           <h3 class="cat-name">${escapeHtml(categoryKo(c.category))}</h3>
-          <span class="cat-meta">${answered ? `${answered}문제 풀었음` : '아직 학습 전'}</span>
+          ${progressBar}
+          <span class="cat-meta">${metaLine}</span>
         </a>`;
     }).join('');
     return `
@@ -102,6 +132,10 @@ export async function renderHome(root: HTMLElement) {
         <div class="cat-grid">${cards}</div>
       </div>`;
   }).join('');
+  // Silence unused-import warnings until per-type listening drill progress is wired up.
+  void listeningTypeFromSlug;
+  void readingAnsweredByCategory;
+  void listeningAnsweredByType;
 
   const tab = loadTab();
 
@@ -118,6 +152,7 @@ export async function renderHome(root: HTMLElement) {
             <span class="home-progress-label">${answeredTotal}<small>/${totalQuestions}</small></span>
           </div>
           ${wordbookPill}
+          ${resetPill}
           ${resume}
         </div>
       </header>
@@ -138,6 +173,20 @@ export async function renderHome(root: HTMLElement) {
 
   const tabs = root.querySelectorAll<HTMLButtonElement>('.tab');
   const panes = root.querySelectorAll<HTMLElement>('.tab-pane');
+
+  // Reset progress button
+  root.querySelector<HTMLButtonElement>('#reset-btn')?.addEventListener('click', () => {
+    const msg = `진도 데이터를 모두 초기화합니다.
+
+· 회차별 풀이 진도와 청해 진도가 모두 지워집니다.
+· 단어장 ★ 표시는 그대로 유지됩니다.
+
+진행할까요?`;
+    if (confirm(msg)) {
+      clearAllProgress();
+      renderHome(root);
+    }
+  });
   tabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       const next = (btn.dataset.tab as HomeTab) || 'exams';

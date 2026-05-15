@@ -77,20 +77,33 @@ if (existsSync(jaExams) && existsSync(dstExams) && src !== SRC_JA) {
 
 // Enrich public/data/index.json with listening question counts so the home page can
 // show the full per-exam totals (reading + listening) without loading every exam.
+// Also aggregate category totals (reading + listening) for the 영역별 모아풀기 cards.
 const idxPath = resolve(dst, 'index.json');
 if (existsSync(idxPath) && existsSync(dstExams)) {
   const idx = JSON.parse(readFileSync(idxPath, 'utf8'));
+  const categoryTotals = {}; // reading category → total q count across exams
+  const listeningTotals = {}; // listening type → total q count across exams
+
   for (const entry of idx.exams) {
     const examFile = resolve(dst, entry.file);
     if (!existsSync(examFile)) continue;
     const ex = JSON.parse(readFileSync(examFile, 'utf8'));
+    // Listening counts
     const L = ex.listening;
-    if (!L?.subsections) continue;
-    const subsections = L.subsections.length;
-    const listening_questions = L.subsections.reduce((s, sub) => s + (sub.questions?.length || 0), 0);
-    entry.listening_subsections = subsections;
-    entry.listening_questions = listening_questions;
+    if (L?.subsections) {
+      entry.listening_subsections = L.subsections.length;
+      entry.listening_questions = L.subsections.reduce((s, sub) => s + (sub.questions?.length || 0), 0);
+      for (const sub of L.subsections) {
+        listeningTotals[sub.type] = (listeningTotals[sub.type] || 0) + (sub.questions?.length || 0);
+      }
+    }
+    // Reading category counts
+    for (const q of (ex.questions || [])) {
+      if (!q.category) continue;
+      categoryTotals[q.category] = (categoryTotals[q.category] || 0) + 1;
+    }
   }
+  idx.category_totals = { ...categoryTotals, ...listeningTotals };
   writeFileSync(idxPath, JSON.stringify(idx, null, 2), 'utf8');
-  console.log('[sync-data] enriched index.json with listening counts');
+  console.log(`[sync-data] enriched index.json with listening + category totals (${Object.keys(idx.category_totals).length} categories)`);
 }
