@@ -800,6 +800,13 @@ button, input { font: inherit; }
   transform: translateY(-2px);
 }
 
+/* Listening card keeps its blue tone when selected. */
+.sec-listen.is-selected {
+  border-color: #1d4ed8;
+  background: linear-gradient(180deg, #eaf1ff, #d6e4ff);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22), 0 16px 32px rgba(37, 99, 235, 0.18);
+}
+
 .section-heading-actions {
   margin-left: auto;
   display: inline-flex;
