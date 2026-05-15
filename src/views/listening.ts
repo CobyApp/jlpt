@@ -1,12 +1,17 @@
-import { loadExam } from '../lib/data';
+import { loadExam, loadVocab } from '../lib/data';
 import { escapeHtml } from '../lib/html';
 import { navigate } from '../router';
 import { getSettings, setSettings, getListenProgress, recordListenAnswer } from '../state';
-import type { Listening, ListeningSubsection, ListeningQuestion } from '../types';
+import { buildIndex, matchVocab } from '../lib/vocab-match';
+import { withFurigana, withoutFurigana } from '../lib/furigana';
+import { showPopover, hidePopover } from '../lib/popover';
+import type { Listening, ListeningSubsection, ListeningQuestion, VocabEntry } from '../types';
 
 let currentController: AbortController | null = null;
 
 const BASE = (import.meta as any).env?.BASE_URL ?? '/';
+
+type VocabIdx = ReturnType<typeof buildIndex>;
 
 /** Resolve an audio URL. Accepts full http(s) URLs (Supabase/CDN) or local relative paths. */
 function resolveAudio(audioUrl: string): string {
@@ -14,12 +19,41 @@ function resolveAudio(audioUrl: string): string {
   return `${BASE}data/${audioUrl}`.replace(/([^:])\/+/g, '$1/');
 }
 
-function stripFurigana(html: string): string {
-  return html.replace(/<rt>.*?<\/rt>/gs, '');
+/**
+ * Strip nihonez-style listening HTML into plain Japanese text so we can run
+ * vocab-matching ourselves. Drops <rt> readings (we re-derive readings from
+ * the vocab DB), <ruby> wrappers (keep the base kanji/kana), and other markup.
+ * Preserves paragraph boundaries via newlines.
+ */
+function htmlToPlain(html: string): string {
+  return html
+    .replace(/<rt>.*?<\/rt>/gs, '')
+    .replace(/<\/?ruby>/g, '')
+    .replace(/<br\s*\/?>(?!\s*<br)/g, '\n')
+    .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '\n\n')
+    .replace(/<\/(?:p|div|li|h[1-6])>/g, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
-function renderJa(html: string): string {
-  return getSettings().furigana ? html : stripFurigana(html);
+function renderJa(text: string, idx: VocabIdx): string {
+  if (!text) return '';
+  const segs = matchVocab(text, idx);
+  return getSettings().furigana ? withFurigana(segs) : withoutFurigana(segs);
+}
+
+/** Convert plain text (from htmlToPlain) into vocab-matched, multi-line HTML. */
+function renderJaBlock(text: string, idx: VocabIdx): string {
+  if (!text) return '';
+  return text
+    .split('\n\n')
+    .map((para) => para
+      .split('\n')
+      .map((line) => renderJa(line, idx))
+      .join('<br>'))
+    .map((para) => `<p class="ja-para">${para}</p>`)
+    .join('');
 }
 
 export async function renderListening(root: HTMLElement, examId: string, m: number) {
@@ -29,7 +63,7 @@ export async function renderListening(root: HTMLElement, examId: string, m: numb
   const { signal } = controller;
 
   root.innerHTML = '<div class="loading">불러오는 중…</div>';
-  const exam = await loadExam(examId);
+  const [exam, vocab] = await Promise.all([loadExam(examId), loadVocab()]);
   if (!exam.listening) {
     root.innerHTML = `<div class="error">청해 데이터가 없습니다 (회차: ${escapeHtml(examId)}).</div>`;
     return;
@@ -42,21 +76,22 @@ export async function renderListening(root: HTMLElement, examId: string, m: numb
   const total = exam.listening.subsections.length;
   const prevM = m > 1 ? m - 1 : null;
   const nextM = m < total ? m + 1 : null;
+  const idx = buildIndex(vocab);
 
-  root.innerHTML = renderShell(exam.test_id, exam.title, exam.listening, sub, prevM, nextM);
+  root.innerHTML = renderShell(exam.test_id, exam.title, exam.listening, sub, prevM, nextM, idx);
 
   // Restore prior answers (in-place patch of DOM)
   const saved = getListenProgress(exam.test_id);
   for (const q of sub.questions) {
     const rec = saved[q.id];
     if (!rec) continue;
-    restoreAnswered(root, q, rec.picked);
+    restoreAnswered(root, q, rec.picked, idx);
   }
 
-  wireListeners(root, exam.test_id, sub, prevM, nextM, signal, saved);
+  wireListeners(root, exam.test_id, sub, prevM, nextM, signal, saved, idx, vocab);
 }
 
-function restoreAnswered(root: HTMLElement, q: ListeningQuestion, picked: number) {
+function restoreAnswered(root: HTMLElement, q: ListeningQuestion, picked: number, idx: VocabIdx) {
   const card = root.querySelector<HTMLElement>(`.listen-q[data-qid="${q.id}"]`);
   if (!card) return;
   card.querySelectorAll<HTMLButtonElement>('.opt').forEach((b, i) => {
@@ -67,7 +102,7 @@ function restoreAnswered(root: HTMLElement, q: ListeningQuestion, picked: number
   const submit = card.querySelector<HTMLButtonElement>('.submit');
   if (submit) { submit.disabled = true; submit.textContent = '확인됨'; }
   const fb = card.querySelector<HTMLElement>('.feedback');
-  if (fb) fb.innerHTML = renderFeedback(q, picked);
+  if (fb) fb.innerHTML = renderFeedback(q, picked, idx);
 }
 
 function renderShell(
@@ -77,6 +112,7 @@ function renderShell(
   sub: ListeningSubsection,
   prevM: number | null,
   nextM: number | null,
+  idx: VocabIdx,
 ): string {
   const audioPath = resolveAudio(sub.audio_url);
   const furiOn = getSettings().furigana;
@@ -85,7 +121,8 @@ function renderShell(
        href="#/exam/${examId}/listen/${s.order}">問題${s.order}</a>
   `).join('');
 
-  const questions = sub.questions.map((q) => renderQuestion(q)).join('');
+  const questions = sub.questions.map((q) => renderQuestion(q, idx)).join('');
+  const introPlain = htmlToPlain(sub.intro_html);
 
   return `
     <div class="study-shell listen-shell">
@@ -103,7 +140,7 @@ function renderShell(
         <nav class="l-subnav" aria-label="청해 문제 이동">${subNav}</nav>
 
         <section class="listen-intro-card">
-          <div class="ja">${renderJa(sub.intro_html)}</div>
+          <div class="ja intro-ja">${renderJa(introPlain, idx)}</div>
         </section>
 
         <section class="listen-audio-card" aria-label="오디오 재생">
@@ -134,15 +171,14 @@ function visibleOptCount(q: ListeningQuestion): number {
   return Math.max(n, 0);
 }
 
-function renderQuestion(q: ListeningQuestion): string {
+function renderQuestion(q: ListeningQuestion, idx: VocabIdx): string {
   const count = visibleOptCount(q);
   const opts = Array.from({ length: count }, (_, i) => {
-    const html = q.opts_html[i] ?? '';
-    const text = renderJa(html || escapeHtml(q.opts[i] ?? ''));
+    const text = q.opts[i] ?? '';
     return `
       <li>
         <button class="opt" data-qid="${q.id}" data-i="${i}">
-          <span class="opt-num">${i + 1}.</span><span class="opt-text">${text}</span>
+          <span class="opt-num">${i + 1}.</span><span class="opt-text">${renderJa(text, idx)}</span>
         </button>
       </li>
     `;
@@ -163,18 +199,19 @@ function renderQuestion(q: ListeningQuestion): string {
   `;
 }
 
-function renderFeedback(q: ListeningQuestion, picked: number): string {
+function renderFeedback(q: ListeningQuestion, picked: number, idx: VocabIdx): string {
   const correct = picked === q.correct;
   const verdict = correct
     ? '✓ 정답'
     : `✗ 오답 (정답: ${q.correct + 1}번)`;
   const translation = q.translation_ko || q.translation_en || '';
   const expl = q.expl_ko || q.explanation_en || '';
+  const scriptPlain = htmlToPlain(q.script_html);
   return `
     <div class="verdict ${correct ? 'ok' : 'no'}">${verdict}</div>
     <details class="listen-reveal" open>
       <summary>音声スクリプト (원문 일본어)</summary>
-      <div class="ja listen-script">${renderJa(q.script_html)}</div>
+      <div class="ja listen-script">${renderJaBlock(scriptPlain, idx)}</div>
     </details>
     ${translation ? `
       <details class="listen-reveal">
@@ -199,8 +236,11 @@ function wireListeners(
   nextM: number | null,
   signal: AbortSignal,
   saved: Record<string, { picked: number; correct: boolean; ts: number }>,
+  idx: VocabIdx,
+  vocab: VocabEntry[],
 ) {
   const qmap = new Map(sub.questions.map((q) => [q.id, q]));
+  const vocabMap = new Map(vocab.map((v) => [v.w, v]));
   const pickedMap = new Map<string, number>();
   const gradedSet = new Set<string>();
   // Seed graded set from persisted answers
@@ -219,32 +259,42 @@ function wireListeners(
     if (nextM) navigate({ name: 'listen', examId, m: nextM });
   }, { signal });
 
-  // Furigana toggle: in-place patch script/intro/opts
+  // Furigana toggle: in-place patch script/intro/opts (and any open feedbacks)
   const furiBtn = root.querySelector<HTMLButtonElement>('#toggle-furigana');
   furiBtn?.addEventListener('click', () => {
     setSettings({ furigana: !getSettings().furigana });
     furiBtn.textContent = `후리가나 ${getSettings().furigana ? 'ON' : 'OFF'}`;
 
     const intro = root.querySelector<HTMLElement>('.listen-intro-card .ja');
-    if (intro) intro.innerHTML = renderJa(sub.intro_html);
+    if (intro) intro.innerHTML = renderJa(htmlToPlain(sub.intro_html), idx);
 
     root.querySelectorAll<HTMLElement>('.listen-q').forEach((card) => {
       const qid = card.dataset.qid!;
       const q = qmap.get(qid)!;
       card.querySelectorAll<HTMLElement>('.opt .opt-text').forEach((el, i) => {
-        const html = q.opts_html[i] ?? '';
-        el.innerHTML = html ? renderJa(html) : escapeHtml(q.opts[i] ?? '');
+        el.innerHTML = renderJa(q.opts[i] ?? '', idx);
       });
       const fb = card.querySelector<HTMLElement>('.feedback');
       if (fb && gradedSet.has(qid)) {
         const picked = pickedMap.get(qid)!;
-        fb.innerHTML = renderFeedback(q, picked);
+        fb.innerHTML = renderFeedback(q, picked, idx);
       }
     });
   }, { signal });
 
   root.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
+
+    // Vocab popover (★ wordbook lives inside the popover itself)
+    const vw = target.closest('.vw') as HTMLElement | null;
+    if (vw) {
+      e.stopPropagation();
+      const w = vw.dataset.w!;
+      const v = vocabMap.get(w);
+      if (v) showPopover(vw, v);
+      return;
+    }
+
     const opt = target.closest('.opt') as HTMLButtonElement | null;
     if (opt && !opt.disabled) {
       const qid = opt.dataset.qid!;
@@ -276,9 +326,11 @@ function wireListeners(
         else if (i === picked) b.classList.add('opt-wrong', 'opt-picked');
       });
       const fb = card.querySelector<HTMLElement>('.feedback')!;
-      fb.innerHTML = renderFeedback(q, picked);
+      fb.innerHTML = renderFeedback(q, picked, idx);
       fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       recordListenAnswer(examId, qid, picked, picked === q.correct);
     }
   }, { signal });
+
+  window.addEventListener('hashchange', hidePopover, { signal });
 }

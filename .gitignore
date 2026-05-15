@@ -11,5 +11,8 @@ public/data/
 scripts/.translate-cache.json
 scripts/.vocab-candidates.json
 scripts/.batches/
+scripts/.expl-input/
+scripts/.expl-output/
+scripts/.transcribe-cache.json
 __pycache__/
 data/n1_corpus/audio/

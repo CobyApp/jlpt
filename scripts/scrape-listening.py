@@ -252,7 +252,8 @@ def scrape_one(exam_path: Path) -> None:
                 print(f'  WARN: no result for {q["id"]}')
                 continue
             try:
-                correct_idx = int(r['correct_answer'])
+                # admin-ajax returns 1-based correct_answer for listening; normalize to 0-based.
+                correct_idx = int(r['correct_answer']) - 1
             except (TypeError, ValueError):
                 correct_idx = -1
             q['correct'] = correct_idx
