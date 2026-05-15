@@ -204,8 +204,8 @@ function renderFeedback(q: ListeningQuestion, picked: number, idx: VocabIdx): st
   const verdict = correct
     ? '✓ 정답'
     : `✗ 오답 (정답: ${q.correct + 1}번)`;
-  const translation = q.translation_ko || q.translation_en || '';
-  const expl = q.expl_ko || q.explanation_en || '';
+  const translation = q.translation_ko || '';
+  const expl = q.expl_ko || '';
   const scriptPlain = htmlToPlain(q.script_html);
   return `
     <div class="verdict ${correct ? 'ok' : 'no'}">${verdict}</div>
@@ -215,12 +215,12 @@ function renderFeedback(q: ListeningQuestion, picked: number, idx: VocabIdx): st
     </details>
     ${translation ? `
       <details class="listen-reveal">
-        <summary>한국어/영어 번역</summary>
+        <summary>한국어 번역</summary>
         <div class="listen-translation">${translation}</div>
       </details>
     ` : ''}
     ${expl ? `
-      <details class="listen-reveal">
+      <details class="listen-reveal" open>
         <summary>해설</summary>
         <div class="listen-expl">${expl}</div>
       </details>

@@ -12,12 +12,20 @@ const MAP: Record<string, string> = {
   'Integrated Comprehension': '통합 이해',
   'Thematic Comprehension': '주장 이해',
   'Information Retrieval': '정보 검색',
+  // Listening pseudo-categories (used by 영역별 모아풀기). The "category"
+  // for listening is the mondai type slug from nihonez. Stored as Korean
+  // labels here so categoryKo() works the same way for reading + listening.
+  'task-based-comprehension': '청해 — 과제 이해',
+  'comprehension-of-key-points': '청해 — 포인트 이해',
+  'comprehension-general-outline': '청해 — 개요 이해',
+  'quick-response': '청해 — 즉시 응답',
+  'listening-integrated-comprehension': '청해 — 통합 이해',
 };
 
 export interface CategoryDef {
   slug: string;
   category: string;
-  group: '어휘' | '문법' | '독해';
+  group: '어휘' | '문법' | '독해' | '청해';
 }
 
 export const ALL_CATEGORIES: CategoryDef[] = [
@@ -34,7 +42,27 @@ export const ALL_CATEGORIES: CategoryDef[] = [
   { slug: 'integrated', category: 'Integrated Comprehension', group: '독해' },
   { slug: 'thematic', category: 'Thematic Comprehension', group: '독해' },
   { slug: 'info-retrieval', category: 'Information Retrieval', group: '독해' },
+  { slug: 'listen-task', category: 'task-based-comprehension', group: '청해' },
+  { slug: 'listen-key', category: 'comprehension-of-key-points', group: '청해' },
+  { slug: 'listen-outline', category: 'comprehension-general-outline', group: '청해' },
+  { slug: 'listen-quick', category: 'quick-response', group: '청해' },
+  { slug: 'listen-integrated', category: 'listening-integrated-comprehension', group: '청해' },
 ];
+
+/** Slugs that correspond to listening mondai types (used to route to listening view). */
+export const LISTENING_SLUGS = new Set([
+  'listen-task',
+  'listen-key',
+  'listen-outline',
+  'listen-quick',
+  'listen-integrated',
+]);
+
+/** Map listening slug → mondai type (matches `listening.subsections[].type`). */
+export function listeningTypeFromSlug(slug: string): string | null {
+  const c = ALL_CATEGORIES.find((c) => c.slug === slug);
+  return c && c.group === '청해' ? c.category : null;
+}
 
 const SLUG_TO_CATEGORY = Object.fromEntries(ALL_CATEGORIES.map((c) => [c.slug, c.category]));
 

@@ -20,6 +20,26 @@ function groupQuestions(qs: Question[], keyOf: (q: Question) => string): Section
   return out;
 }
 
+const LISTENING_KO_LABEL: Record<string, string> = {
+  'task-based-comprehension': '청해 — 과제 이해',
+  'comprehension-of-key-points': '청해 — 포인트 이해',
+  'comprehension-general-outline': '청해 — 개요 이해',
+  'quick-response': '청해 — 즉시 응답',
+  'listening-integrated-comprehension': '청해 — 통합 이해',
+};
+
+/** Strip ruby furigana + HTML tags so vocab-match sees plain Japanese. */
+function stripListeningHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<rt>.*?<\/rt>/gs, '')
+    .replace(/<\/?ruby>/g, '')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6])>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
 const KANJI_RE = /[一-龯々ヶ]/;
 
 function renderHanja(word: string, table: Record<string, [string, string]>): string {
@@ -52,6 +72,25 @@ export async function renderWordlist(
   const keyOf = (q: Question): string => isCategoryDrill ? (q.src_label ?? '') : q.category;
   const sections = groupQuestions(exam.questions, keyOf);
   const validKeys = new Set(sections.map((s) => s.key));
+
+  // Listening sections (per mondai). Each listening mondai gets a virtual section
+  // keyed as `listen:<order>` so we can filter words by it just like reading sections.
+  interface ListenSectionDef { key: string; type: string; label: string; mondai: number; qids: string[] }
+  const listenSections: ListenSectionDef[] = [];
+  if (exam.listening) {
+    for (const sub of exam.listening.subsections) {
+      const key = `listen:${sub.order}`;
+      listenSections.push({
+        key,
+        type: sub.type,
+        mondai: sub.order,
+        label: LISTENING_KO_LABEL[sub.type] ?? `청해 問題${sub.order}`,
+        qids: sub.questions.map((q) => q.id),
+      });
+      validKeys.add(key);
+    }
+  }
+
   const labelOf = (s: SectionDef): string => isCategoryDrill
     ? s.key
     : categoryKo(s.key);
@@ -59,8 +98,9 @@ export async function renderWordlist(
     ? `회차 ${s.idx + 1}`
     : `問題${s.idx + 1}`;
 
-  // Per-question vocab matches
+  // Per-question vocab matches — reading: keyed by q.n, listening: keyed by q.id (string)
   const perQ = new Map<number, Set<string>>();
+  const perLQ = new Map<string, Set<string>>();
   const entryByW = new Map<string, VocabEntry>();
   const freq = new Map<string, number>();
 
@@ -82,6 +122,35 @@ export async function renderWordlist(
     for (const w of set) freq.set(w, (freq.get(w) ?? 0) + 1);
   }
 
+  // Listening: aggregate words from opts + script (per mondai, script is shared
+  // across questions when from Whisper, so dedupe at the mondai level for freq).
+  if (exam.listening) {
+    for (const sub of exam.listening.subsections) {
+      const seenScripts = new Set<string>();
+      for (const q of sub.questions) {
+        const set = new Set<string>();
+        const texts: string[] = [...q.opts];
+        const scriptPlain = stripListeningHtml(q.script_html);
+        const scriptKey = scriptPlain.slice(0, 60);
+        const newScript = !seenScripts.has(scriptKey);
+        if (newScript) {
+          seenScripts.add(scriptKey);
+          if (scriptPlain) texts.push(scriptPlain);
+        }
+        for (const t of texts) {
+          for (const seg of matchVocab(t, idx)) {
+            if (!seg.entry) continue;
+            const w = seg.entry.w;
+            set.add(w);
+            if (!entryByW.has(w)) entryByW.set(w, seg.entry);
+          }
+        }
+        perLQ.set(q.id, set);
+        for (const w of set) freq.set(w, (freq.get(w) ?? 0) + 1);
+      }
+    }
+  }
+
   // ── State ──
   let sortKey: SortKey = 'freq';
   // Multi-select set (empty = "전체")
@@ -97,25 +166,56 @@ export async function renderWordlist(
   const inRange = (n: number) => (rangeFrom == null || n >= rangeFrom) && (rangeTo == null || n <= rangeTo);
   const isAll = () => activeSet.size === 0;
 
+  const listenSectionByKey = new Map(listenSections.map((s) => [s.key, s]));
+
   // Static count for a single section (used in tab badges) — independent of activeSet
   const sectionCountSingle = (key: string): number => {
     const ws = new Set<string>();
+    if (key.startsWith('listen:')) {
+      const ls = listenSectionByKey.get(key);
+      if (ls) {
+        for (const qid of ls.qids) {
+          for (const w of perLQ.get(qid) ?? []) ws.add(w);
+        }
+      }
+      return ws.size;
+    }
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
       if (key !== 'all' && keyOf(q) !== key) continue;
       for (const w of perQ.get(q.n) ?? []) ws.add(w);
     }
+    if (key === 'all') {
+      // 'all' includes listening too
+      for (const ls of listenSections) {
+        for (const qid of ls.qids) {
+          for (const w of perLQ.get(qid) ?? []) ws.add(w);
+        }
+      }
+    }
     return ws.size;
   };
 
+  const isListenActive = (key: string) => activeSet.has(key);
+
   const computeWords = () => {
     const wordSet = new Set<string>();
+    // Reading sections
     for (const q of exam.questions) {
       if (!inRange(q.n)) continue;
       if (!isAll() && !activeSet.has(keyOf(q))) continue;
       const set = perQ.get(q.n);
       if (!set) continue;
       for (const w of set) wordSet.add(w);
+    }
+    // Listening sections (range filter doesn't apply — listening has separate numbering)
+    for (const ls of listenSections) {
+      if (!isAll() && !isListenActive(ls.key)) continue;
+      for (const qid of ls.qids) {
+        const set = perLQ.get(qid);
+        if (!set) continue;
+        for (const w of set) wordSet.add(w);
+      }
     }
     const list = Array.from(wordSet).map((w) => entryByW.get(w)!).filter(Boolean);
     if (sortKey === 'freq') list.sort((a, b) => (freq.get(b.w)! - freq.get(a.w)!) || a.w.localeCompare(b.w));
@@ -132,6 +232,11 @@ export async function renderWordlist(
         key: s.key,
         num: numberOf(s),
         label: labelOf(s),
+      })),
+      ...listenSections.map((ls) => ({
+        key: ls.key,
+        num: `問題${ls.mondai}`,
+        label: ls.label,
       })),
     ];
     return items.map((it) => {
@@ -277,12 +382,20 @@ export async function renderWordlist(
   });
 
   startBtn.addEventListener('click', () => {
-    const list = sections.filter((s) => activeSet.has(s.key));
+    // Listening-only selection → jump straight to that mondai's listening view.
+    const selectedListens = listenSections.filter((ls) => activeSet.has(ls.key));
+    const selectedReadings = sections.filter((s) => activeSet.has(s.key));
+    if (selectedListens.length > 0 && selectedReadings.length === 0) {
+      // Pick the first selected mondai as entry point. The view has chips for the rest.
+      const target = selectedListens[0];
+      navigate({ name: 'listen', examId, m: target.mondai });
+      return;
+    }
     let from: number | undefined;
     let to: number | undefined;
-    if (list.length > 0) {
-      from = Math.min(...list.map((s) => s.from));
-      to = Math.max(...list.map((s) => s.to));
+    if (selectedReadings.length > 0) {
+      from = Math.min(...selectedReadings.map((s) => s.from));
+      to = Math.max(...selectedReadings.map((s) => s.to));
     }
     if (rangeFrom != null) from = rangeFrom;
     if (rangeTo != null) to = rangeTo;
